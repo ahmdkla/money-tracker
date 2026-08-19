@@ -40,12 +40,12 @@ export function ForecastChart({ dark }: { dark: boolean }) {
     <>
       <div className="h-[168px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: -18 }} barCategoryGap="22%">
+          <BarChart data={data} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barCategoryGap="22%">
             <YAxis
               tick={{ fill: c.axis, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={44}
+              width={58}
               tickFormatter={numberCompact}
             />
             <XAxis

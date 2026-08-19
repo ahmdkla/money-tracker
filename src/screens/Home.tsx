@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo } from 'react';
 import {
   Bell,
   CalendarBlank,
+  Sun,
   CheckCircle,
   TrendDown,
   TrendUp,
@@ -105,13 +106,22 @@ export function Home({
       <div className="desk:grid desk:grid-cols-3 desk:gap-5 desk:px-gutter">
       {/* 2. Hero ------------------------------------------------------ */}
       <section className="px-gutter desk:col-span-1 desk:px-0">
+        {/* The header only exists on desktop, where it squares the top of this
+            card with the chart beside it. On a phone the hero is the first
+            thing on screen and needs no label above it. */}
+        <div className="hidden desk:block">
+          <SectionHeader
+            title={t('home.today')}
+            icon={<Sun size={14} weight="bold" aria-hidden="true" />}
+          />
+        </div>
         {empty ? <EmptyHero onAdd={onAdd} /> : <Hero currency={currency} />}
       </section>
 
       {!empty && (
         <>
           {/* 3. Forecast --------------------------------------------- */}
-          <section className="px-gutter pt-6 desk:col-span-2 desk:pt-0">
+          <section className="px-gutter pt-6 desk:col-span-2 desk:px-0 desk:pt-0">
             <SectionHeader
               title={t('home.next7Days')}
               icon={<CalendarBlank size={14} weight="bold" aria-hidden="true" />}
@@ -132,7 +142,7 @@ export function Home({
 
           {/* 4. Warning banner --------------------------------------- */}
           {forecast.warning && (
-            <section className="px-gutter pt-3 desk:col-span-3 desk:pt-0">
+            <section className="px-gutter pt-3 desk:col-span-3 desk:px-0 desk:pt-0">
               <div className="flex items-start gap-3 rounded-card bg-coral-soft px-4 py-3.5 dark:bg-[#33221B]">
                 <Warning
                   size={19}
@@ -154,8 +164,11 @@ export function Home({
             </section>
           )}
 
-          {/* 5. Recent ------------------------------------------------ */}
-          <section className="px-gutter pt-6 desk:col-span-2 desk:pt-0">
+          {/* 5 and 6. Recent and the alerts share the wide column, so the
+              budget rail beside them starts level with Recent instead of
+              dropping to the row below it. ---------------------------- */}
+          <div className="desk:col-span-2 desk:space-y-5">
+          <section className="px-gutter pt-6 desk:px-0 desk:pt-0">
             <SectionHeader
               title={t('home.recent')}
               action={
@@ -185,9 +198,8 @@ export function Home({
               ))}
             </div>
           </section>
-          {/* 6. Alerts ------------------------------------------------ */}
           {alerts.length > 0 && (
-            <section className="px-gutter pt-6 desk:col-span-2 desk:px-0 desk:pt-0">
+            <section className="px-gutter pt-6 desk:px-0 desk:pt-0">
               <SectionHeader
                 title={t('home.worthKnowing')}
                 icon={<Bell size={13} weight="bold" aria-hidden="true" />}
@@ -209,6 +221,7 @@ export function Home({
               </ul>
             </section>
           )}
+          </div>
 
           {/* 7. Budgets, desktop only: the width is there, use it. --- */}
           <section className="hidden desk:col-span-1 desk:block">

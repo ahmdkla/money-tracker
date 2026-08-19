@@ -296,8 +296,11 @@ export function SectionHeader({
   icon?: ReactNode;
   action?: ReactNode;
 }) {
+  // A fixed height rather than one that follows the contents: a header with a
+  // 44px action button beside it would otherwise sit a few pixels lower than a
+  // plain one, which reads as sloppy when two columns are side by side.
   return (
-    <div className="mb-2.5 flex items-center justify-between gap-3">
+    <div className="mb-2 flex h-9 items-center justify-between gap-3">
       <h2 className="flex items-center gap-2 text-meta font-medium uppercase tracking-[0.07em] text-ink-500 dark:text-ink-400">
         {icon}
         {title}

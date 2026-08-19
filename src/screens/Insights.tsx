@@ -378,7 +378,7 @@ export function Insights({
               </p>
               <div className="h-[128px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={netWorth} margin={{ top: 6, right: 8, bottom: 0, left: -14 }}>
+                  <LineChart data={netWorth} margin={{ top: 6, right: 8, bottom: 0, left: 0 }}>
                     <XAxis
                       dataKey="label"
                       tick={{ fill: c.axis, fontSize: 11 }}
@@ -390,7 +390,7 @@ export function Insights({
                       tick={{ fill: c.axis, fontSize: 11 }}
                       tickLine={false}
                       axisLine={false}
-                      width={46}
+                      width={58}
                       tickFormatter={numberCompact}
                       domain={['dataMin - 400', 'dataMax + 400']}
                     />

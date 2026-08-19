@@ -166,7 +166,7 @@ export function Reports({
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
                       data={data}
-                      margin={{ top: 4, right: 4, bottom: 0, left: -16 }}
+                      margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
                       barCategoryGap="18%"
                       onClick={(e) => {
                         const key = e?.activePayload?.[0]?.payload?.key;
@@ -186,7 +186,7 @@ export function Reports({
                         tick={{ fill: c.axis, fontSize: 11 }}
                         tickLine={false}
                         axisLine={false}
-                        width={50}
+                        width={58}
                         tickFormatter={(v: number) => numberCompact(Math.abs(v))}
                       />
                       <ReferenceLine y={0} stroke={c.axis} />
