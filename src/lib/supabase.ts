@@ -61,23 +61,30 @@ export function authRedirectTo(): string {
  * Rate limiting in particular is the one people will actually hit on the
  * built-in email service, so it gets a real explanation.
  */
+/**
+ * Maps a Supabase auth failure to a dictionary key.
+ *
+ * Returns the raw server message when nothing matches: an untranslated but
+ * accurate sentence beats a vague one, and translate() passes an unknown key
+ * straight through unharmed.
+ */
 export function readableAuthError(message: string): string {
   const m = message.toLowerCase();
 
   if (m.includes('rate limit') || m.includes('too many') || m.includes('429')) {
-    return 'Too many emails have gone out for now. Supabase limits its built in email service to a few per hour. Wait a few minutes, or attach your own SMTP provider.';
+    return 'auth.errRate';
   }
   if (m.includes('invalid') && m.includes('email')) {
-    return 'That does not look like an email address.';
+    return 'auth.errEmail';
   }
   if (m.includes('redirect') || m.includes('not allowed')) {
-    return 'This address is not on the project allowed redirect list yet.';
+    return 'auth.errRedirect';
   }
   if (m.includes('signups not allowed') || m.includes('disabled')) {
-    return 'New signups are turned off for this project.';
+    return 'auth.errSignups';
   }
   if (m.includes('failed to fetch') || m.includes('network')) {
-    return 'Could not reach the server. Check your connection and try again.';
+    return 'auth.errNetwork';
   }
   return message;
 }

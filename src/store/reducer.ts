@@ -8,6 +8,7 @@ import type {
   Transaction,
   Transfer,
 } from '../types';
+import type { Lang } from '../lib/i18n';
 import { round2 } from '../lib/format';
 import { createEmptyState, createSeedState } from '../lib/seed';
 
@@ -20,6 +21,8 @@ export type Action =
   | { type: 'settings/savings'; value: number }
   | { type: 'settings/currency'; value: string }
   | { type: 'settings/theme'; value: ThemePref }
+  | { type: 'settings/lang'; value: Lang }
+  | { type: 'settings/currency-converted'; state: AppState }
   | { type: 'budget/set'; budget: Budget }
   | { type: 'budget/remove'; categoryId: string }
   | { type: 'category/add'; category: Category }
@@ -120,6 +123,14 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'settings/theme':
       return { ...state, darkMode: action.value };
+
+    case 'settings/lang':
+      return { ...state, lang: action.value };
+
+    case 'settings/currency-converted':
+      // Every stored figure has already been rewritten at the live rate by
+      // convertState; the reducer only accepts the result.
+      return action.state;
 
     case 'budget/set': {
       const limit = Math.max(0, round2(action.budget.monthlyLimit));

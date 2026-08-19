@@ -16,20 +16,20 @@ import { round2 } from './format';
  * and every category chart. It lives in its own list and only balances see it.
  */
 
-export const ACCOUNT_KINDS: { id: AccountKind; label: string; icon: string }[] = [
-  { id: 'cash', label: 'Cash', icon: 'Wallet' },
-  { id: 'bank', label: 'Bank account', icon: 'Bank' },
-  { id: 'ewallet', label: 'E-wallet', icon: 'DeviceMobile' },
-  { id: 'card', label: 'Card', icon: 'CreditCard' },
-  { id: 'savings', label: 'Savings', icon: 'PiggyBank' },
+export const ACCOUNT_KINDS: { id: AccountKind; key: string; icon: string }[] = [
+  { id: 'cash', key: 'accounts.kindCash', icon: 'Wallet' },
+  { id: 'bank', key: 'accounts.kindBank', icon: 'Bank' },
+  { id: 'ewallet', key: 'accounts.kindEwallet', icon: 'DeviceMobile' },
+  { id: 'card', key: 'accounts.kindCard', icon: 'CreditCard' },
+  { id: 'savings', key: 'accounts.kindSavings', icon: 'PiggyBank' },
 ];
 
-export const ACCOUNT_KIND_LABEL: Record<AccountKind, string> = {
-  cash: 'Cash',
-  bank: 'Bank account',
-  ewallet: 'E-wallet',
-  card: 'Card',
-  savings: 'Savings',
+export const ACCOUNT_KIND_KEY: Record<AccountKind, string> = {
+  cash: 'accounts.kindCash',
+  bank: 'accounts.kindBank',
+  ewallet: 'accounts.kindEwallet',
+  card: 'accounts.kindCard',
+  savings: 'accounts.kindSavings',
 };
 
 /** Where a transaction lands when nothing says otherwise. */
@@ -121,17 +121,19 @@ export function totalBalance(state: AppState, asOf: Date = new Date()): number {
 }
 
 /** A transfer is only meaningful between two different, real accounts. */
+/* Returns a dictionary key rather than a sentence: this module is pure and
+   has no idea which language the interface is in. */
 export function validateTransfer(
   state: AppState,
   from: string | null,
   to: string | null,
   amount: number,
 ): string | null {
-  if (!from || !to) return 'Choose which account the money leaves and where it lands.';
-  if (from === to) return 'Pick two different accounts.';
-  if (!Number.isFinite(amount) || amount <= 0) return 'Enter an amount above zero.';
-  if (!state.accounts.some((a) => a.id === from)) return 'That source account no longer exists.';
-  if (!state.accounts.some((a) => a.id === to)) return 'That destination account no longer exists.';
+  if (!from || !to) return 'accounts.errPickTwo';
+  if (from === to) return 'accounts.errSame';
+  if (!Number.isFinite(amount) || amount <= 0) return 'accounts.errAmount';
+  if (!state.accounts.some((a) => a.id === from)) return 'accounts.errMissingFrom';
+  if (!state.accounts.some((a) => a.id === to)) return 'accounts.errMissingTo';
   return null;
 }
 

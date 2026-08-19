@@ -3,7 +3,7 @@ import { Coins, Plus, Target, Trash, Trophy } from '@phosphor-icons/react';
 import type { SavingsGoal } from '../types';
 import { useApp } from '../store/AppContext';
 import { allGoalProgress, totalSaved, totalTargeted } from '../lib/goals';
-import { money, moneyWhole, percent } from '../lib/format';
+import { money, moneyWhole, percent, plural } from '../lib/format';
 import { COLOR_KEYS, tints } from '../lib/palette';
 import { CATEGORY_ICON_NAMES, iconFor } from '../components/icons';
 import { ProgressBar, SectionHeader, Sheet } from '../components/primitives';
@@ -18,7 +18,7 @@ import { ProgressBar, SectionHeader, Sheet } from '../components/primitives';
  * added an ambition.
  */
 export function Goals({ dark }: { dark: boolean }) {
-  const { state, dispatch, today } = useApp();
+  const { state, dispatch, today, t } = useApp();
   const [editing, setEditing] = useState<SavingsGoal | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [contributing, setContributing] = useState<SavingsGoal | null>(null);
@@ -31,7 +31,9 @@ export function Goals({ dark }: { dark: boolean }) {
   return (
     <div className="pb-24 desk:pb-8">
       <header className="flex flex-wrap items-center gap-3 px-gutter pb-3 pt-3 desk:pt-6">
-        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">Savings goals</h1>
+        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">
+          {t('goals.title')}
+        </h1>
         <span className="flex-1" />
         <button
           type="button"
@@ -42,7 +44,7 @@ export function Goals({ dark }: { dark: boolean }) {
           className="btn-quiet min-h-[44px] px-3 text-meta"
         >
           <Plus size={17} weight="bold" aria-hidden="true" />
-          Add goal
+          {t('goals.addGoal')}
         </button>
       </header>
 
@@ -50,12 +52,10 @@ export function Goals({ dark }: { dark: boolean }) {
         <section className="px-gutter">
           <div className="card">
             <p className="text-base font-medium text-ink-900 dark:text-ink-50">
-              Nothing being saved for yet
+              {t('goals.emptyTitle')}
             </p>
             <p className="mt-1.5 text-meta leading-snug text-ink-600 dark:text-ink-300">
-              A goal is a name, a number and a running total. It sits alongside your monthly
-              set-aside rather than replacing it, so adding one never changes what you are safe
-              to spend today.
+              {t('goals.emptyBody')}
             </p>
             <button
               type="button"
@@ -66,7 +66,7 @@ export function Goals({ dark }: { dark: boolean }) {
               className="btn-primary mt-4"
             >
               <Target size={18} aria-hidden="true" />
-              Set your first goal
+              {t('goals.setFirst')}
             </button>
           </div>
         </section>
@@ -75,20 +75,27 @@ export function Goals({ dark }: { dark: boolean }) {
           <section className="px-gutter desk:col-span-1 desk:px-0">
             <div className="rounded-hero bg-brand px-5 py-5 text-white">
               <p className="text-meta font-medium uppercase tracking-[0.09em] text-mint-soft">
-                Put aside so far
+                {t('goals.putAside')}
               </p>
               <p className="tnum mt-1.5 font-display text-hero-sm">
                 {moneyWhole(saved, state.currency)}
               </p>
               <p className="mt-1 text-meta text-mint-soft">
-                of {moneyWhole(targeted, state.currency)} across{' '}
-                {progress.length === 1 ? 'one goal' : `${progress.length} goals`}
+                {t('goals.ofAcross', {
+                  total: moneyWhole(targeted, state.currency),
+                  count:
+                    progress.length === 1
+                      ? t('goals.oneGoal')
+                      : t('goals.nGoals', { count: progress.length }),
+                })}
               </p>
               <div className="mt-4 [&>div]:bg-brand-deep">
                 <ProgressBar
                   fraction={targeted > 0 ? saved / targeted : 0}
                   tone="#5DCAA5"
-                  label={`${percent(targeted > 0 ? saved / targeted : 0)} of everything saved for`}
+                  label={t('goals.everythingAria', {
+                    percent: percent(targeted > 0 ? saved / targeted : 0),
+                  })}
                   height={5}
                 />
               </div>
@@ -96,7 +103,7 @@ export function Goals({ dark }: { dark: boolean }) {
           </section>
 
           <section className="px-gutter pt-5 desk:col-span-2 desk:px-0 desk:pt-0">
-            <SectionHeader title="Goals" />
+            <SectionHeader title={t('goals.list')} />
             <ul className="grid gap-2.5 sm:grid-cols-2 desk:grid-cols-2">
               {progress.map((p) => {
                 const tint = tintSet[p.goal.colorKey];
@@ -117,8 +124,10 @@ export function Goals({ dark }: { dark: boolean }) {
                           {p.goal.name}
                         </span>
                         <span className="tnum block text-meta text-ink-500 dark:text-ink-400">
-                          {money(p.goal.saved, state.currency)} of{' '}
-                          {money(p.goal.target, state.currency)}
+                          {t('goals.savedOf', {
+                            saved: money(p.goal.saved, state.currency),
+                            target: money(p.goal.target, state.currency),
+                          })}
                         </span>
                       </span>
                       <span className="tnum shrink-0 text-meta font-medium text-ink-700 dark:text-ink-200">
@@ -130,32 +139,40 @@ export function Goals({ dark }: { dark: boolean }) {
                       <ProgressBar
                         fraction={p.fraction}
                         tone={tone}
-                        label={`${p.goal.name}, ${percent(p.fraction)} funded`}
+                        label={t('goals.fundedAria', {
+                          name: p.goal.name,
+                          percent: percent(p.fraction),
+                        })}
                         height={7}
                       />
                     </div>
 
                     <p className="mt-2 text-meta leading-snug text-ink-600 dark:text-ink-300">
-                      {p.reached ? (
-                        <>Fully funded. Worth deciding what it is for now.</>
-                      ) : p.perMonth !== null && p.monthsLeft !== null ? (
-                        <>
-                          {money(p.remaining, state.currency)} to go.{' '}
-                          {p.monthsLeft === 0
-                            ? 'The deadline is this month.'
-                            : `${money(p.perMonth, state.currency)} a month across ${p.monthsLeft} ${
-                                p.monthsLeft === 1 ? 'month' : 'months'
-                              } gets there.`}
-                        </>
-                      ) : (
-                        <>{money(p.remaining, state.currency)} to go.</>
-                      )}
+                      {p.reached
+                        ? t('goals.fullyFunded')
+                        : p.perMonth !== null && p.monthsLeft !== null
+                          ? `${t('goals.toGo', {
+                              amount: money(p.remaining, state.currency),
+                            })} ${
+                              p.monthsLeft === 0
+                                ? t('goals.deadlineThisMonth')
+                                : t('goals.perMonth', {
+                                    amount: money(p.perMonth, state.currency),
+                                    count: plural(
+                                      p.monthsLeft,
+                                      t('common.month'),
+                                      t('common.months'),
+                                    ),
+                                  })
+                            }`
+                          : t('goals.toGo', { amount: money(p.remaining, state.currency) })}
                     </p>
 
                     {p.behind && (
                       <p className="mt-1.5 rounded-chip bg-amber-soft px-2 py-1 text-micro font-medium text-amber-text dark:bg-[#332810] dark:text-[#F0C176]">
-                        More than the {money(state.savingsGoalPerMonth, state.currency)} currently
-                        set aside each month.
+                        {t('goals.behind', {
+                          amount: money(state.savingsGoalPerMonth, state.currency),
+                        })}
                       </p>
                     )}
 
@@ -166,7 +183,7 @@ export function Goals({ dark }: { dark: boolean }) {
                         className="btn-quiet min-h-[44px] flex-1 px-3 text-meta"
                       >
                         <Coins size={16} aria-hidden="true" />
-                        Add money
+                        {t('goals.addMoney')}
                       </button>
                       <button
                         type="button"
@@ -176,7 +193,7 @@ export function Goals({ dark }: { dark: boolean }) {
                         }}
                         className="btn-quiet min-h-[44px] px-3 text-meta"
                       >
-                        Edit
+                        {t('common.edit')}
                       </button>
                     </div>
                   </li>
@@ -219,7 +236,7 @@ function GoalSheet({
   editing: SavingsGoal | null;
   dark: boolean;
 }) {
-  const { dispatch } = useApp();
+  const { dispatch, t } = useApp();
   const [draft, setDraft] = useState<SavingsGoal | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastKey, setLastKey] = useState('');
@@ -246,11 +263,11 @@ function GoalSheet({
   function save() {
     if (!draft) return;
     if (!draft.name.trim()) {
-      setError('Give the goal a name.');
+      setError(t('goals.errName'));
       return;
     }
     if (!(draft.target > 0)) {
-      setError('Set a target above zero.');
+      setError(t('goals.errTarget'));
       return;
     }
     const clean = { ...draft, name: draft.name.trim() };
@@ -262,7 +279,7 @@ function GoalSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={editing ? 'Edit goal' : 'New goal'}
+      title={t(editing ? 'goals.editTitle' : 'goals.newTitle')}
       footer={
         <div className="flex gap-2.5">
           {editing && (
@@ -276,11 +293,11 @@ function GoalSheet({
               style={{ border: '1px solid var(--hairline)' }}
             >
               <Trash size={18} aria-hidden="true" />
-              Delete
+              {t('common.delete')}
             </button>
           )}
           <button type="button" onClick={save} className="btn-primary flex-1">
-            Save
+            {t('common.save')}
           </button>
         </div>
       }
@@ -288,7 +305,7 @@ function GoalSheet({
       <div className="grid gap-4 pb-4 pt-1">
         <div>
           <label htmlFor="goal-name" className="label">
-            What for
+            {t('goals.whatFor')}
           </label>
           <input
             id="goal-name"
@@ -298,7 +315,7 @@ function GoalSheet({
               setDraft({ ...draft, name: e.target.value });
               setError(null);
             }}
-            placeholder="Emergency fund, new laptop, a trip"
+            placeholder={t('goals.namePlaceholder')}
             className="field"
           />
         </div>
@@ -306,7 +323,7 @@ function GoalSheet({
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="goal-target" className="label">
-              Target
+              {t('goals.target')}
             </label>
             <input
               id="goal-target"
@@ -325,7 +342,7 @@ function GoalSheet({
           </div>
           <div>
             <label htmlFor="goal-saved" className="label">
-              Already put aside
+              {t('goals.alreadySaved')}
             </label>
             <input
               id="goal-saved"
@@ -345,7 +362,8 @@ function GoalSheet({
 
         <div>
           <label htmlFor="goal-deadline" className="label">
-            By when <span className="font-normal text-ink-400">optional</span>
+            {t('goals.byWhen')}{' '}
+            <span className="font-normal text-ink-400">{t('common.optional')}</span>
           </label>
           <input
             id="goal-deadline"
@@ -355,12 +373,12 @@ function GoalSheet({
             className="field tnum"
           />
           <p className="mt-1.5 text-meta text-ink-500 dark:text-ink-400">
-            With a date, the app works out what has to go in each month.
+            {t('goals.deadlineHint')}
           </p>
         </div>
 
         <fieldset>
-          <legend className="label">Colour</legend>
+          <legend className="label">{t('palette.colour')}</legend>
           <div className="flex flex-wrap gap-2">
             {COLOR_KEYS.map((k) => {
               const on = draft.colorKey === k;
@@ -385,7 +403,7 @@ function GoalSheet({
         </fieldset>
 
         <fieldset>
-          <legend className="label">Icon</legend>
+          <legend className="label">{t('settings.icon')}</legend>
           <div className="grid grid-cols-7 gap-1.5">
             {CATEGORY_ICON_NAMES.slice(0, 21).map((name) => {
               const Icon = iconFor(name);
@@ -433,7 +451,7 @@ function ContributeSheet({
   onClose: () => void;
   onAdd: (id: string, amount: number) => void;
 }) {
-  const { state } = useApp();
+  const { state, t } = useApp();
   const [amount, setAmount] = useState('');
   const [lastId, setLastId] = useState<string | null>(null);
 
@@ -453,8 +471,8 @@ function ContributeSheet({
     <Sheet
       open
       onClose={onClose}
-      title={`Add to ${goal.name}`}
-      description="Records what you have put aside. It does not move money between accounts on its own."
+      title={t('goals.contributeTitle', { name: goal.name })}
+      description={t('goals.contributeSubtitle')}
       footer={
         <button
           type="button"
@@ -462,13 +480,13 @@ function ContributeSheet({
           disabled={value <= 0}
           className="btn-primary"
         >
-          Add {value > 0 ? money(value, state.currency) : ''}
+          {t('common.add')} {value > 0 ? money(value, state.currency) : ''}
         </button>
       }
     >
       <div className="pb-4 pt-1">
         <label htmlFor="goal-add" className="label">
-          Amount
+          {t('common.amount')}
         </label>
         <input
           id="goal-add"
@@ -480,7 +498,10 @@ function ContributeSheet({
           className="field tnum"
         />
         <p className="mt-2 text-meta text-ink-500 dark:text-ink-400">
-          Currently {money(goal.saved, state.currency)} of {money(goal.target, state.currency)}.
+          {t('goals.currentlyOf', {
+            saved: money(goal.saved, state.currency),
+            target: money(goal.target, state.currency),
+          })}
         </p>
       </div>
     </Sheet>

@@ -25,49 +25,113 @@ export interface ParseResult {
 }
 
 /**
- * Merchant and slang to category-name mapping. Keys are matched against the
- * typed words; values are matched against the user's own category names, so
- * this keeps working after categories are renamed or added.
+ * Merchant and slang, mapped to a canonical category id.
+ *
+ * Ids rather than names, because the seeded categories are Indonesian and a
+ * user may rename them to anything at all. The lookup resolves an id first and
+ * falls back to matching the label, so both a stock install and a renamed one
+ * get a hit, in either language.
  */
 const SYNONYMS: Record<string, string> = {
-  // Coffee
-  coffee: 'Coffee', latte: 'Coffee', espresso: 'Coffee', cappuccino: 'Coffee',
-  starbucks: 'Coffee', cafe: 'Coffee', brew: 'Coffee', flatwhite: 'Coffee',
-  // Groceries
-  groceries: 'Groceries', grocery: 'Groceries', supermarket: 'Groceries',
-  market: 'Groceries', aldi: 'Groceries', tesco: 'Groceries', kroger: 'Groceries',
-  safeway: 'Groceries', wholefoods: 'Groceries', trader: 'Groceries',
-  // Dining
-  dining: 'Dining', lunch: 'Dining', dinner: 'Dining', brunch: 'Dining',
-  breakfast: 'Dining', restaurant: 'Dining', takeout: 'Dining', pizza: 'Dining',
-  sushi: 'Dining', burger: 'Dining', doordash: 'Dining', ubereats: 'Dining',
-  deliveroo: 'Dining', snack: 'Dining', bar: 'Dining', drinks: 'Dining',
-  // Transport
-  transport: 'Transport', uber: 'Transport', lyft: 'Transport', taxi: 'Transport',
-  cab: 'Transport', gas: 'Transport', petrol: 'Transport', fuel: 'Transport',
-  parking: 'Transport', train: 'Transport', bus: 'Transport', metro: 'Transport',
-  subway: 'Transport', flight: 'Transport',
-  // Subscriptions
-  subscription: 'Subscriptions', netflix: 'Subscriptions', spotify: 'Subscriptions',
-  hulu: 'Subscriptions', icloud: 'Subscriptions', dropbox: 'Subscriptions',
-  gym: 'Subscriptions', membership: 'Subscriptions', prime: 'Subscriptions',
-  // Rent
-  rent: 'Rent', mortgage: 'Rent', landlord: 'Rent', lease: 'Rent',
-  // Home
-  home: 'Home', utilities: 'Home', electric: 'Home', electricity: 'Home',
-  water: 'Home', internet: 'Home', wifi: 'Home', phone: 'Home', heating: 'Home',
-  // Health
-  health: 'Health', pharmacy: 'Health', doctor: 'Health', dentist: 'Health',
-  medicine: 'Health', clinic: 'Health',
-  // Income
-  payroll: 'Payroll', paycheck: 'Payroll', salary: 'Payroll', wage: 'Payroll',
-  wages: 'Payroll', payday: 'Payroll', invoice: 'Payroll', freelance: 'Payroll',
-  refund: 'Payroll', bonus: 'Payroll', deposit: 'Payroll',
+  /* --- coffee ------------------------------------------------------- */
+  kopi: 'cat_coffee', kenangan: 'cat_coffee', tuku: 'cat_coffee',
+  janji: 'cat_coffee', jiwa: 'cat_coffee', fore: 'cat_coffee',
+  ngopi: 'cat_coffee', kapal: 'cat_coffee',
+  coffee: 'cat_coffee', latte: 'cat_coffee', espresso: 'cat_coffee',
+  cappuccino: 'cat_coffee', starbucks: 'cat_coffee', cafe: 'cat_coffee',
+  brew: 'cat_coffee',
+
+  /* --- groceries ---------------------------------------------------- */
+  belanja: 'cat_groceries', indomaret: 'cat_groceries', alfamart: 'cat_groceries',
+  superindo: 'cat_groceries', hypermart: 'cat_groceries', transmart: 'cat_groceries',
+  warung: 'cat_groceries', pasar: 'cat_groceries', sayur: 'cat_groceries',
+  sembako: 'cat_groceries',
+  groceries: 'cat_groceries', grocery: 'cat_groceries', supermarket: 'cat_groceries',
+  market: 'cat_groceries', aldi: 'cat_groceries', tesco: 'cat_groceries',
+  kroger: 'cat_groceries', safeway: 'cat_groceries', wholefoods: 'cat_groceries',
+  trader: 'cat_groceries',
+
+  /* --- dining ------------------------------------------------------- */
+  makan: 'cat_dining', gofood: 'cat_dining', grabfood: 'cat_dining',
+  shopeefood: 'cat_dining', bakso: 'cat_dining', soto: 'cat_dining',
+  nasi: 'cat_dining', ayam: 'cat_dining', padang: 'cat_dining',
+  sate: 'cat_dining', mie: 'cat_dining', jajan: 'cat_dining',
+  cemilan: 'cat_dining', kantin: 'cat_dining', restoran: 'cat_dining',
+  dining: 'cat_dining', lunch: 'cat_dining', dinner: 'cat_dining',
+  brunch: 'cat_dining', breakfast: 'cat_dining', restaurant: 'cat_dining',
+  takeout: 'cat_dining', pizza: 'cat_dining', sushi: 'cat_dining',
+  burger: 'cat_dining', ramen: 'cat_dining', doordash: 'cat_dining',
+  ubereats: 'cat_dining', deliveroo: 'cat_dining', snack: 'cat_dining',
+  drinks: 'cat_dining',
+
+  /* --- transport ---------------------------------------------------- */
+  gojek: 'cat_transport', grab: 'cat_transport', maxim: 'cat_transport',
+  bensin: 'cat_transport', pertamina: 'cat_transport', transjakarta: 'cat_transport',
+  busway: 'cat_transport', krl: 'cat_transport', kereta: 'cat_transport',
+  ojek: 'cat_transport', taksi: 'cat_transport', parkir: 'cat_transport',
+  pesawat: 'cat_transport', angkot: 'cat_transport',
+  transport: 'cat_transport', uber: 'cat_transport', lyft: 'cat_transport',
+  taxi: 'cat_transport', cab: 'cat_transport', gas: 'cat_transport',
+  petrol: 'cat_transport', fuel: 'cat_transport', parking: 'cat_transport',
+  train: 'cat_transport', bus: 'cat_transport', metro: 'cat_transport',
+  flight: 'cat_transport',
+
+  /* --- subscriptions ------------------------------------------------ */
+  langganan: 'cat_subs', membership: 'cat_subs', vidio: 'cat_subs',
+  subscription: 'cat_subs', netflix: 'cat_subs', spotify: 'cat_subs',
+  hulu: 'cat_subs', icloud: 'cat_subs', dropbox: 'cat_subs',
+  gym: 'cat_subs', prime: 'cat_subs', disney: 'cat_subs', youtube: 'cat_subs',
+
+  /* --- rent --------------------------------------------------------- */
+  sewa: 'cat_rent', kos: 'cat_rent', kontrakan: 'cat_rent', kontrak: 'cat_rent',
+  cicilan: 'cat_rent',
+  rent: 'cat_rent', mortgage: 'cat_rent', landlord: 'cat_rent', lease: 'cat_rent',
+
+  /* --- home --------------------------------------------------------- */
+  rumah: 'cat_home', listrik: 'cat_home', token: 'cat_home', pdam: 'cat_home',
+  pln: 'cat_home', indihome: 'cat_home', pulsa: 'cat_home',
+  home: 'cat_home', utilities: 'cat_home', electric: 'cat_home',
+  electricity: 'cat_home', water: 'cat_home', internet: 'cat_home',
+  wifi: 'cat_home', phone: 'cat_home', heating: 'cat_home',
+
+  /* --- health ------------------------------------------------------- */
+  kesehatan: 'cat_health', apotek: 'cat_health', apotik: 'cat_health',
+  dokter: 'cat_health', klinik: 'cat_health', obat: 'cat_health',
+  fisioterapi: 'cat_health', gigi: 'cat_health', vitamin: 'cat_health',
+  health: 'cat_health', pharmacy: 'cat_health', doctor: 'cat_health',
+  dentist: 'cat_health', medicine: 'cat_health', clinic: 'cat_health',
+
+  /* --- income ------------------------------------------------------- */
+  gaji: 'cat_payroll', gajian: 'cat_payroll', thr: 'cat_payroll',
+  honor: 'cat_payroll', transferan: 'cat_payroll', komisi: 'cat_payroll',
+  payroll: 'cat_payroll', paycheck: 'cat_payroll', salary: 'cat_payroll',
+  wage: 'cat_payroll', wages: 'cat_payroll', payday: 'cat_payroll',
+  invoice: 'cat_payroll', freelance: 'cat_payroll', refund: 'cat_payroll',
+  bonus: 'cat_payroll', deposit: 'cat_payroll',
+};
+
+/**
+ * Labels a canonical id is known by, so a renamed category still matches. The
+ * seeded Indonesian name comes first, then the English equivalent.
+ */
+const CANONICAL_LABELS: Record<string, string[]> = {
+  cat_coffee: ['Kopi', 'Coffee'],
+  cat_groceries: ['Belanja', 'Groceries'],
+  cat_dining: ['Makan di luar', 'Dining'],
+  cat_rent: ['Sewa', 'Rent'],
+  cat_transport: ['Transportasi', 'Transport'],
+  cat_subs: ['Langganan', 'Subscriptions'],
+  cat_home: ['Rumah', 'Home'],
+  cat_health: ['Kesehatan', 'Health'],
+  cat_payroll: ['Gaji', 'Payroll'],
 };
 
 const INCOME_HINTS = new Set([
   'payroll', 'paycheck', 'salary', 'wage', 'wages', 'payday', 'invoice',
   'freelance', 'refund', 'bonus', 'deposit', 'income', 'earned', 'received',
+  // Indonesian
+  'gaji', 'gajian', 'thr', 'honor', 'pemasukan', 'masuk', 'transferan',
+  'penghasilan', 'komisi', 'untung', 'dividen', 'refund',
 ]);
 
 /** Strips currency symbols and thousands separators, keeps the decimal point. */
@@ -115,8 +179,16 @@ export function matchCategory(
 ): CategoryMatch {
   const words = normalise(text);
   const pool = categories.filter((c) => c.kind === type);
-  const byName = (target: string) =>
-    pool.find((c) => c.name.toLowerCase() === target.toLowerCase());
+  /**
+   * A canonical id resolves to the category with that id, or failing that to
+   * one named as that concept in either language.
+   */
+  const byCanonical = (canonical: string) => {
+    const direct = pool.find((c) => c.id === canonical);
+    if (direct) return direct;
+    const labels = (CANONICAL_LABELS[canonical] ?? []).map((l) => l.toLowerCase());
+    return pool.find((c) => labels.includes(c.name.toLowerCase()));
+  };
 
   const found = (hit: Category | undefined, on: string): CategoryMatch | null =>
     hit ? { categoryId: hit.id, matchedOn: on, matchedName: hit.name } : null;
@@ -125,7 +197,7 @@ export function matchCategory(
   for (const w of words) {
     const target = SYNONYMS[w];
     if (!target) continue;
-    const hit = found(byName(target), w);
+    const hit = found(byCanonical(target), w);
     if (hit) return hit;
   }
 
@@ -151,7 +223,7 @@ export function matchCategory(
     }
   }
   if (best) {
-    const hit = found(byName(best.target), best.key);
+    const hit = found(byCanonical(best.target), best.key);
     if (hit) return hit;
   }
 

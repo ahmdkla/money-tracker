@@ -60,14 +60,14 @@ export function useAuth(): AuthState {
   };
 }
 
-/** Sends a magic link. Resolves to an error message, or null on success. */
+/** Sends a magic link. Resolves to a dictionary key, or null on success. */
 export async function sendMagicLink(email: string): Promise<string | null> {
   const db = await getSupabase();
-  if (!db) return 'This copy of manimani has no backend configured yet.';
+  if (!db) return 'auth.errNoBackend';
 
   const trimmed = email.trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-    return 'That does not look like an email address.';
+    return 'auth.errEmail';
   }
 
   const { error } = await db.auth.signInWithOtp({

@@ -22,7 +22,7 @@ import {
   type Bucket,
   type Granularity,
 } from '../lib/reports';
-import { money, moneyCompact, moneyWhole } from '../lib/format';
+import { money, moneyWhole, numberCompact } from '../lib/format';
 import { chartTheme } from '../lib/palette';
 import { SectionHeader, Skeleton, VisuallyHidden } from '../components/primitives';
 import { TransactionRow } from '../components/TransactionRow';
@@ -42,7 +42,7 @@ export function Reports({
   dark: boolean;
   onSelectTransaction: (tx: Transaction) => void;
 }) {
-  const { state, today, categoryById, ready } = useApp();
+  const { state, today, categoryById, ready, t } = useApp();
   const [granularity, setGranularity] = useState<Granularity>('month');
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -68,9 +68,11 @@ export function Reports({
   return (
     <div className="pb-24 desk:pb-8">
       <header className="px-gutter pb-3 pt-3 desk:pt-6">
-        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">Reports</h1>
+        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">
+          {t('reports.title')}
+        </h1>
         <p className="mt-0.5 text-meta text-ink-500 dark:text-ink-400">
-          Money in against money out. Transfers between your own accounts are left out.
+          {t('reports.subtitle')}
         </p>
       </header>
 
@@ -79,7 +81,7 @@ export function Reports({
         <div
           className="flex gap-1 rounded-field bg-ink-100 p-1 dark:bg-night-raised"
           role="radiogroup"
-          aria-label="Period"
+          aria-label={t('transactions.period')}
         >
           {GRANULARITIES.map((g) => {
             const on = granularity === g.id;
@@ -100,7 +102,7 @@ export function Reports({
                 }`}
                 style={on ? { border: '1px solid var(--hairline)' } : undefined}
               >
-                {g.label}
+                {t(g.key)}
               </button>
             );
           })}
@@ -110,20 +112,22 @@ export function Reports({
       <div className="desk:grid desk:grid-cols-3 desk:gap-5 desk:px-gutter desk:pt-4">
         {/* Totals ----------------------------------------------------- */}
         <section className="px-gutter pt-4 desk:col-span-1 desk:px-0 desk:pt-0">
-          <SectionHeader title="Over this stretch" />
+          <SectionHeader title={t('reports.overStretch')} />
           <div className="card grid gap-3">
             <Figure
-              label="Money in"
+              label={t('common.moneyIn')}
               value={moneyWhole(summary.income, state.currency)}
               tone="in"
             />
             <Figure
-              label="Money out"
+              label={t('common.moneyOut')}
               value={moneyWhole(summary.expense, state.currency)}
               tone="out"
             />
             <div className="hairline-t pt-3">
-              <p className="text-meta text-ink-500 dark:text-ink-400">Left over</p>
+              <p className="text-meta text-ink-500 dark:text-ink-400">
+                {t('reports.leftOver')}
+              </p>
               <p
                 className={`tnum font-display text-2xl ${
                   summary.net < 0
@@ -135,27 +139,26 @@ export function Reports({
               </p>
             </div>
             <p className="text-meta leading-snug text-ink-500 dark:text-ink-400">
-              {summary.count} {summary.count === 1 ? 'transaction' : 'transactions'}
               {summary.busiest
-                ? `, heaviest in ${summary.busiest.label} at ${money(
-                    summary.busiest.expense,
-                    state.currency,
-                  )}`
-                : ''}
-              .
+                ? t('reports.summary', {
+                    count: summary.count,
+                    label: summary.busiest.label,
+                    amount: money(summary.busiest.expense, state.currency),
+                  })
+                : t('reports.summaryPlain', { count: summary.count })}
             </p>
           </div>
         </section>
 
         {/* Chart ------------------------------------------------------- */}
         <section className="px-gutter pt-5 desk:col-span-2 desk:px-0 desk:pt-0">
-          <SectionHeader title="In and out" />
+          <SectionHeader title={t('reports.inAndOut')} />
           <div className="card">
             {!ready ? (
               <Skeleton className="h-[240px] w-full" />
             ) : summary.count === 0 ? (
               <p className="py-6 text-center text-meta text-ink-500 dark:text-ink-400">
-                Nothing recorded in this stretch yet.
+                {t('reports.nothingHere')}
               </p>
             ) : (
               <>
@@ -183,20 +186,20 @@ export function Reports({
                         tick={{ fill: c.axis, fontSize: 11 }}
                         tickLine={false}
                         axisLine={false}
-                        width={54}
-                        tickFormatter={(v: number) => moneyCompact(Math.abs(v), state.currency)}
+                        width={50}
+                        tickFormatter={(v: number) => numberCompact(Math.abs(v))}
                       />
                       <ReferenceLine y={0} stroke={c.axis} />
                       <Tooltip
                         cursor={{ fill: dark ? 'rgb(255 255 255 / 0.05)' : 'rgb(20 24 23 / 0.04)' }}
-                        content={<ReportTooltip currency={state.currency} dark={dark} />}
+                        content={<ReportTooltip currency={state.currency} dark={dark} t={t} />}
                       />
                       <Legend
                         verticalAlign="bottom"
                         height={26}
                         formatter={(v) => (
                           <span style={{ color: c.axis, fontSize: 12 }}>
-                            {v === 'income' ? 'Money in' : 'Money out'}
+                            {t(v === 'income' ? 'common.moneyIn' : 'common.moneyOut')}
                           </span>
                         )}
                       />
@@ -229,8 +232,7 @@ export function Reports({
                 </div>
 
                 <p className="mt-1 text-meta text-ink-500 dark:text-ink-400">
-                  Money out is drawn below the line so the two never stack. Tap a period to see
-                  what is in it.
+                  {t('reports.chartHint')}
                 </p>
 
                 <VisuallyHidden>
@@ -238,10 +240,10 @@ export function Reports({
                     .filter((b) => b.count > 0)
                     .map(
                       (b) =>
-                        `${b.label}: in ${money(b.income, state.currency)}, out ${money(
-                          b.expense,
+                        `${b.label}: ${t('common.in')} ${money(
+                          b.income,
                           state.currency,
-                        )}`,
+                        )}, ${t('common.out')} ${money(b.expense, state.currency)}`,
                     )
                     .join('. ')}
                 </VisuallyHidden>
@@ -254,21 +256,21 @@ export function Reports({
         {active && (
           <section className="px-gutter pt-5 desk:col-span-3 desk:px-0">
             <SectionHeader
-              title={`${active.label}: ${rows.length} ${rows.length === 1 ? 'entry' : 'entries'}`}
+              title={t('reports.entries', { label: active.label, count: rows.length })}
               action={
                 <button
                   type="button"
                   onClick={() => setSelected(null)}
                   className="press -mr-1 flex min-h-[44px] items-center rounded-chip px-2 text-meta font-medium text-brand-mid dark:text-mint"
                 >
-                  Close
+                  {t('common.close')}
                 </button>
               }
             />
             <div className="card py-1.5">
               {rows.length === 0 ? (
                 <p className="py-2 text-meta text-ink-500 dark:text-ink-400">
-                  Nothing in this period.
+                  {t('reports.nothingInPeriod')}
                 </p>
               ) : (
                 rows.map((tx, i) => (
@@ -320,11 +322,13 @@ function ReportTooltip({
   payload,
   currency,
   dark,
+  t,
 }: {
   active?: boolean;
   payload?: { payload: Bucket & { outward: number } }[];
   currency: string;
   dark: boolean;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   if (!active || !payload?.length) return null;
   const b = payload[0].payload;
@@ -338,9 +342,15 @@ function ReportTooltip({
       }}
     >
       <p className="font-medium">{b.label}</p>
-      <p className="tnum mt-0.5">In {money(b.income, currency)}</p>
-      <p className="tnum">Out {money(b.expense, currency)}</p>
-      <p className="tnum mt-0.5 opacity-80">Net {money(b.net, currency)}</p>
+      <p className="tnum mt-0.5">
+        {t('common.in')} {money(b.income, currency)}
+      </p>
+      <p className="tnum">
+        {t('common.out')} {money(b.expense, currency)}
+      </p>
+      <p className="tnum mt-0.5 opacity-80">
+        {t('transactions.net')} {money(b.net, currency)}
+      </p>
     </div>
   );
 }

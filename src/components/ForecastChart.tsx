@@ -11,7 +11,7 @@ import {
 import type { Transaction } from '../types';
 import { useApp } from '../store/AppContext';
 import { chartTheme } from '../lib/palette';
-import { money, moneyCompact } from '../lib/format';
+import { money, numberCompact } from '../lib/format';
 import { VisuallyHidden } from './primitives';
 
 /*
@@ -22,7 +22,7 @@ import { VisuallyHidden } from './primitives';
  */
 
 export function ForecastChart({ dark }: { dark: boolean }) {
-  const { forecast, state } = useApp();
+  const { forecast, state, t } = useApp();
   const c = chartTheme(dark);
 
   const data = forecast.days.map((d) => ({
@@ -45,8 +45,8 @@ export function ForecastChart({ dark }: { dark: boolean }) {
               tick={{ fill: c.axis, fontSize: 11 }}
               tickLine={false}
               axisLine={false}
-              width={52}
-              tickFormatter={(v: number) => moneyCompact(v, state.currency)}
+              width={44}
+              tickFormatter={numberCompact}
             />
             <XAxis
               dataKey="label"
@@ -64,7 +64,7 @@ export function ForecastChart({ dark }: { dark: boolean }) {
             <ReferenceLine y={0} stroke={c.grid} />
             <Tooltip
               cursor={{ fill: dark ? 'rgb(255 255 255 / 0.05)' : 'rgb(20 24 23 / 0.04)' }}
-              content={<ForecastTooltip currency={state.currency} dark={dark} />}
+              content={<ForecastTooltip currency={state.currency} dark={dark} t={t} />}
             />
             <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false}>
               {data.map((d) => (
@@ -85,28 +85,37 @@ export function ForecastChart({ dark }: { dark: boolean }) {
       {/* The legend also carries the meaning in words, so colour is never the
           only thing distinguishing a tight day from an ordinary one. */}
       <ul className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-micro text-ink-500 dark:text-ink-400">
-        <LegendKey fill={c.barToday} stroke={c.barTodayStroke} label="Today" />
-        <LegendKey fill={c.bar} stroke={c.barStroke} label="Ordinary day" />
-        <LegendKey fill={c.barTight} stroke={c.barTightStroke} label="Running tight" />
+        <LegendKey fill={c.barToday} stroke={c.barTodayStroke} label={t('home.legendToday')} />
+        <LegendKey fill={c.bar} stroke={c.barStroke} label={t('home.legendOrdinary')} />
+        <LegendKey
+          fill={c.barTight}
+          stroke={c.barTightStroke}
+          label={t('home.legendTight')}
+        />
         <li className="flex items-center gap-1.5">
           <span
             className="h-0 w-3.5"
             style={{ borderTop: `1px dashed ${c.reference}` }}
             aria-hidden="true"
           />
-          A week of everyday spending
+          {t('home.legendThreshold')}
         </li>
       </ul>
 
       <VisuallyHidden>
-        Seven day forecast.{' '}
+        {t('home.next7Days')}.{' '}
         {data
-          .map((d) => `${d.label}, ${money(d.value, state.currency)}${d.tight ? ', tight' : ''}`)
+          .map(
+            (d) =>
+              `${d.label}, ${money(d.value, state.currency)}${
+                d.tight ? `, ${t('forecast.tight')}` : ''
+              }`,
+          )
           .join('. ')}
         .{' '}
         {tightCount > 0
-          ? `${tightCount} of the next seven days fall below a week of everyday spending.`
-          : 'No day in the window falls below a week of everyday spending.'}
+          ? t('forecast.tightDays', { count: tightCount })
+          : t('forecast.noTightDays')}
       </VisuallyHidden>
     </>
   );
@@ -160,11 +169,13 @@ function ForecastTooltip({
   payload,
   currency,
   dark,
+  t,
 }: {
   active?: boolean;
   payload?: { payload: { label: string; value: number; tight: boolean; bills: Transaction[] } }[];
   currency: string;
   dark: boolean;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -179,13 +190,13 @@ function ForecastTooltip({
       }}
     >
       <p className="font-medium">{d.label}</p>
-      <p className="tnum mt-0.5">{money(d.value, currency)} left</p>
+      <p className="tnum mt-0.5">{t('home.spentLeft', { amount: money(d.value, currency) })}</p>
       {d.bills.map((b) => (
         <p key={b.id} className="mt-0.5 opacity-80">
-          {b.note ?? 'Bill'} {money(b.amount, currency)}
+          {b.note ?? t('home.aBill')} {money(b.amount, currency)}
         </p>
       ))}
-      {d.tight && <p className="mt-0.5 opacity-80">Under a week of runway</p>}
+      {d.tight && <p className="mt-0.5 opacity-80">{t('forecast.underRunway')}</p>}
     </div>
   );
 }

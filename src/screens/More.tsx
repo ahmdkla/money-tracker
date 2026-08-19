@@ -1,24 +1,40 @@
 import { useRef, useState } from 'react';
 import {
   Check,
+  CircleNotch,
   FileArrowUp,
   Desktop,
   DownloadSimple,
+  Globe,
   Lock,
   Moon,
   PencilSimple,
   Plus,
   Sun,
+  Translate,
   Trash,
   UploadSimple,
 } from '@phosphor-icons/react';
 import type { Category, ColorKey, ThemePref } from '../types';
 import { useApp } from '../store/AppContext';
-import { CURRENCIES, money } from '../lib/format';
+import { money } from '../lib/format';
+import {
+  CURRENCIES,
+  RateUnavailableError,
+  convertState,
+  describeRate,
+  fetchRate,
+} from '../lib/currency';
+import { LANGUAGES } from '../lib/i18n';
 import { COLOR_KEY_LABELS, COLOR_KEYS, tints } from '../lib/palette';
 import { exportState, validateState } from '../lib/storage';
 import { CATEGORY_ICON_NAMES, iconFor } from '../components/icons';
-import { CategoryTile, SectionHeader, Sheet } from '../components/primitives';
+import {
+  CategoryTile,
+  SectionHeader,
+  Sheet,
+  VisuallyHidden,
+} from '../components/primitives';
 import { AccountPanel } from '../components/AccountBits';
 
 export function More({
@@ -34,9 +50,42 @@ export function More({
   onImportCsv: () => void;
   onStartFresh: () => void;
 }) {
-  const { state, dispatch, safe, auth } = useApp();
+  const { state, dispatch, safe, auth, t, lang, locale } = useApp();
   const [categoriesOpen, setCategoriesOpen] = useState(false);
+  const [converting, setConverting] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  /**
+   * Switching currency rewrites every stored amount at the live rate, so the
+   * request has to succeed before anything changes. A failure leaves the
+   * previous currency selected and says why, rather than half converting.
+   */
+  async function changeCurrency(to: string) {
+    if (to === state.currency || converting) return;
+    setConverting(to);
+    try {
+      const rate = await fetchRate(state.currency, to);
+      dispatch({
+        type: 'settings/currency-converted',
+        state: convertState(state, rate, to),
+      });
+      notify(
+        t('toast.currencyConverted', {
+          code: to,
+          rate: describeRate(state.currency, to, rate, locale),
+        }),
+      );
+    } catch (err) {
+      notify(
+        err instanceof RateUnavailableError
+          ? t('toast.currencyOffline')
+          : t('toast.currencyOffline'),
+        'warning',
+      );
+    } finally {
+      setConverting(null);
+    }
+  }
 
   function onImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -49,52 +98,53 @@ export function More({
         const parsed = validateState(JSON.parse(String(reader.result)));
         if (!parsed) throw new Error('shape');
         dispatch({ type: 'data/replace', state: parsed });
-        notify('Imported');
+        notify(t('toast.imported'));
       } catch {
-        notify('That file did not look right. Try exporting a fresh copy.', 'warning');
+        notify(t('toast.importFailed'), 'warning');
       }
     };
-    reader.onerror = () =>
-      notify('That file could not be read. Try exporting a fresh copy.', 'warning');
+    reader.onerror = () => notify(t('toast.importUnreadable'), 'warning');
     reader.readAsText(file);
   }
 
   return (
     <div className="pb-24 desk:pb-8">
       <header className="px-gutter pb-3 pt-3 desk:pt-6">
-        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">Settings</h1>
+        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">
+          {t('settings.title')}
+        </h1>
       </header>
 
       <div className="desk:grid desk:grid-cols-2 desk:items-start desk:gap-5 desk:px-gutter">
       {/* Account --------------------------------------------------------- */}
       <section className="px-gutter desk:px-0">
-        <SectionHeader title="Account" />
+        <SectionHeader title={t('settings.account')} />
         <AccountPanel onSignIn={onSignIn} />
       </section>
 
       {/* The money that drives the number ------------------------------ */}
       <section className="px-gutter pt-5 desk:px-0 desk:pt-0">
-        <SectionHeader title="Your month" />
+        <SectionHeader title={t('settings.yourMonth')} />
         <div className="card grid gap-4">
           <NumberField
             id="set-income"
-            label="Monthly income"
-            help="What you expect to come in this month."
+            label={t('settings.monthlyIncome')}
+            help={t('settings.monthlyIncomeHint')}
             value={state.monthlyIncome}
             currency={state.currency}
             onCommit={(v) => dispatch({ type: 'settings/income', value: v })}
           />
           <NumberField
             id="set-savings"
-            label="Monthly savings goal"
-            help="Set aside first, before anything is called spendable."
+            label={t('settings.savingsGoal')}
+            help={t('settings.savingsGoalHint')}
             value={state.savingsGoalPerMonth}
             currency={state.currency}
             onCommit={(v) => dispatch({ type: 'settings/savings', value: v })}
           />
           <div>
             <label htmlFor="set-name" className="label">
-              Name
+              {t('settings.name')}
             </label>
             <input
               id="set-name"
@@ -107,58 +157,141 @@ export function More({
 
           <div className="hairline-t pt-3">
             <p className="text-meta leading-snug text-ink-600 dark:text-ink-300">
-              After {money(safe.fixedBillsThisMonth, state.currency)} of fixed bills and{' '}
-              {money(state.savingsGoalPerMonth, state.currency)} of savings, this month has{' '}
-              <strong className="tnum font-semibold text-ink-900 dark:text-ink-50">
-                {money(safe.spendableThisMonth, state.currency)}
-              </strong>{' '}
-              of spending money in it.
+              {t('settings.spendingMoneySummary', {
+                bills: money(safe.fixedBillsThisMonth, state.currency),
+                savings: money(state.savingsGoalPerMonth, state.currency),
+                spendable: money(safe.spendableThisMonth, state.currency),
+              })}
             </p>
           </div>
         </div>
       </section>
 
+      {/* Language ------------------------------------------------------ */}
+      <section className="px-gutter pt-5 desk:px-0 desk:pt-0">
+        <SectionHeader
+          title={t('settings.language')}
+          icon={<Translate size={14} weight="bold" aria-hidden="true" />}
+        />
+        <div className="card">
+          <fieldset>
+            <legend className="label">{t('settings.language')}</legend>
+            <div
+              className="flex gap-1 rounded-field bg-ink-100 p-1 dark:bg-night-raised"
+              role="radiogroup"
+              aria-label={t('settings.language')}
+            >
+              {LANGUAGES.map((l) => {
+                const selected = lang === l.id;
+                return (
+                  <button
+                    key={l.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => dispatch({ type: 'settings/lang', value: l.id })}
+                    className={`press flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-chip text-meta font-medium ${
+                      selected
+                        ? 'bg-white text-ink-900 dark:bg-night-card dark:text-ink-50'
+                        : 'text-ink-600 dark:text-ink-400'
+                    }`}
+                    style={selected ? { border: '1px solid var(--hairline)' } : undefined}
+                  >
+                    {l.label}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+          <p className="mt-2 text-meta text-ink-500 dark:text-ink-400">
+            {t('settings.languageHint')}
+          </p>
+        </div>
+      </section>
+
       {/* Currency ------------------------------------------------------ */}
       <section className="px-gutter pt-5 desk:px-0 desk:pt-0">
-        <SectionHeader title="Currency" />
+        <SectionHeader
+          title={t('settings.currency')}
+          icon={<Globe size={14} weight="bold" aria-hidden="true" />}
+        />
         <div className="card">
-          <label htmlFor="set-currency" className="label">
-            Display currency
-          </label>
-          <select
-            id="set-currency"
-            value={state.currency}
-            onChange={(e) => dispatch({ type: 'settings/currency', value: e.target.value })}
-            className="field"
-          >
-            {CURRENCIES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.code} · {c.label}
-              </option>
-            ))}
-          </select>
-          <p className="mt-1.5 text-meta text-ink-500 dark:text-ink-400">
-            This changes how amounts are shown. It does not convert anything.
+          <fieldset disabled={converting !== null}>
+            <legend className="label">{t('settings.displayCurrency')}</legend>
+            <div
+              className="grid gap-1.5"
+              role="radiogroup"
+              aria-label={t('settings.displayCurrency')}
+              aria-busy={converting !== null}
+            >
+              {CURRENCIES.map((c) => {
+                const selected = state.currency === c.code;
+                const busy = converting === c.code;
+                return (
+                  <button
+                    key={c.code}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => void changeCurrency(c.code)}
+                    className={`press flex min-h-[52px] items-center gap-3 rounded-field px-3.5 text-left disabled:opacity-60 ${
+                      selected
+                        ? 'text-ink-900 dark:text-ink-50'
+                        : 'text-ink-700 dark:text-ink-200'
+                    }`}
+                    style={{
+                      border: `1px solid ${selected ? 'var(--chosen)' : 'var(--hairline)'}`,
+                      backgroundColor: selected ? 'var(--chosen-bg)' : undefined,
+                    }}
+                  >
+                    <span className="tnum w-11 shrink-0 text-meta font-semibold">{c.code}</span>
+                    <span className="min-w-0 flex-1 truncate text-base">{c.label}</span>
+                    {busy ? (
+                      <>
+                        <CircleNotch
+                          size={17}
+                          className="shrink-0 animate-spin text-brand-mid dark:text-mint"
+                          aria-hidden="true"
+                        />
+                        <VisuallyHidden>{t('settings.converting')}</VisuallyHidden>
+                      </>
+                    ) : (
+                      selected && (
+                        <Check
+                          size={17}
+                          weight="bold"
+                          className="shrink-0 text-brand-mid dark:text-mint"
+                          aria-hidden="true"
+                        />
+                      )
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+          <p className="mt-2 text-meta leading-snug text-ink-500 dark:text-ink-400">
+            {t('settings.currencyHint')}
           </p>
         </div>
       </section>
 
       {/* Appearance ---------------------------------------------------- */}
       <section className="px-gutter pt-5 desk:px-0 desk:pt-0">
-        <SectionHeader title="Appearance" />
+        <SectionHeader title={t('settings.appearance')} />
         <div className="card">
           <fieldset>
-            <legend className="label">Theme</legend>
+            <legend className="label">{t('settings.theme')}</legend>
             <div
               className="flex gap-1 rounded-field bg-ink-100 p-1 dark:bg-night-raised"
               role="radiogroup"
-              aria-label="Theme"
+              aria-label={t('settings.theme')}
             >
               {(
                 [
-                  { id: 'system', label: 'System', Icon: Desktop },
-                  { id: 'light', label: 'Light', Icon: Sun },
-                  { id: 'dark', label: 'Dark', Icon: Moon },
+                  { id: 'system', label: t('settings.themeSystem'), Icon: Desktop },
+                  { id: 'light', label: t('settings.themeLight'), Icon: Sun },
+                  { id: 'dark', label: t('settings.themeDark'), Icon: Moon },
                 ] as { id: ThemePref; label: string; Icon: typeof Sun }[]
               ).map(({ id, label, Icon }) => {
                 const selected = state.darkMode === id;
@@ -184,14 +317,14 @@ export function More({
             </div>
           </fieldset>
           <p className="mt-2 text-meta text-ink-500 dark:text-ink-400">
-            System follows your device, and changes with it while the app is open.
+            {t('settings.themeHint')}
           </p>
         </div>
       </section>
 
       {/* Categories ---------------------------------------------------- */}
       <section className="px-gutter pt-5 desk:px-0 desk:pt-0">
-        <SectionHeader title="Categories" />
+        <SectionHeader title={t('settings.categories')} />
         <div className="card">
           <button
             type="button"
@@ -200,10 +333,10 @@ export function More({
           >
             <span>
               <span className="block text-base font-medium text-ink-900 dark:text-ink-50">
-                Manage categories
+                {t('settings.manageCategories')}
               </span>
               <span className="mt-0.5 block text-meta text-ink-500 dark:text-ink-400">
-                {state.categories.length} in use. Add, rename, recolour or remove.
+                {t('settings.categoriesCount', { count: state.categories.length })}
               </span>
             </span>
             <PencilSimple
@@ -217,18 +350,18 @@ export function More({
 
       {/* Data ---------------------------------------------------------- */}
       <section className="px-gutter pt-5 desk:px-0 desk:pt-0">
-        <SectionHeader title="Your data" />
+        <SectionHeader title={t('settings.yourData')} />
         <div className="card grid gap-2.5">
           <button
             type="button"
             onClick={() => {
               exportState(state);
-              notify('Exported');
+              notify(t('toast.exported'));
             }}
             className="btn-quiet w-full justify-start"
           >
             <DownloadSimple size={18} aria-hidden="true" />
-            Export as JSON
+            {t('settings.exportJson')}
           </button>
 
           <button
@@ -237,7 +370,7 @@ export function More({
             className="btn-quiet w-full justify-start"
           >
             <FileArrowUp size={18} aria-hidden="true" />
-            Import a CSV from your bank
+            {t('settings.importCsv')}
           </button>
 
           <button
@@ -246,7 +379,7 @@ export function More({
             className="btn-quiet w-full justify-start"
           >
             <UploadSimple size={18} aria-hidden="true" />
-            Restore a manimani backup
+            {t('settings.restoreBackup')}
           </button>
           <input
             ref={fileInput}
@@ -265,29 +398,26 @@ export function More({
             style={{ border: '1px solid var(--hairline)' }}
           >
             <Trash size={18} aria-hidden="true" />
-            Delete everything and start fresh
+            {t('settings.startFresh')}
           </button>
           <p className="text-meta leading-snug text-ink-500 dark:text-ink-400">
-            {state.demoSeeded
-              ? 'Clears the sample month so you can begin on your own numbers.'
-              : 'Clears every transaction, account, budget and goal. Categories, currency and theme stay.'}
+            {state.demoSeeded ? t('settings.startFreshHintDemo') : t('settings.startFreshHint')}
           </p>
         </div>
       </section>
 
       {/* About --------------------------------------------------------- */}
       <section className="px-gutter pb-6 pt-5 desk:col-span-2 desk:px-0">
-        <SectionHeader title="About manimani" />
+        <SectionHeader title={t('settings.about')} />
         <div className="card">
-          <p className="text-meta leading-relaxed text-ink-600 dark:text-ink-300">
-            manimani exists to answer one question the moment you open it: are you okay to
-            spend today? It takes your income, sets your savings aside, subtracts the bills
-            you already know about, and divides what is genuinely left across the days that
-            are genuinely left. That is the whole trick.
+          <p className="font-display text-lg leading-snug text-ink-900 dark:text-ink-50">
+            {t('app.tagline')}
           </p>
           <p className="mt-3 text-meta leading-relaxed text-ink-600 dark:text-ink-300">
-            It is not here to make you feel bad about a dinner out. A number that only ever
-            scolds is a number people stop opening.
+            {t('settings.aboutBody')}
+          </p>
+          <p className="mt-3 text-meta leading-relaxed text-ink-600 dark:text-ink-300">
+            {t('settings.aboutBody2')}
           </p>
 
           <div
@@ -300,25 +430,10 @@ export function More({
               aria-hidden="true"
             />
             <p className="text-meta leading-snug text-ink-600 dark:text-ink-300">
-              {auth.session ? (
-                <>
-                  <strong className="font-medium text-ink-900 dark:text-ink-50">
-                    Your data is yours alone.
-                  </strong>{' '}
-                  It is stored against your account and protected by row level security, so
-                  the server will not return another account{'’'}s rows even if asked. There
-                  is no analytics and no tracking. Export takes a copy whenever you want one.
-                </>
-              ) : (
-                <>
-                  <strong className="font-medium text-ink-900 dark:text-ink-50">
-                    Nothing leaves this device.
-                  </strong>{' '}
-                  You are not signed in, so there is no server involved at all. Everything
-                  lives in this browser{'’'}s local storage, which is why clearing site data
-                  wipes it and why the export button exists.
-                </>
-              )}
+              <strong className="font-medium text-ink-900 dark:text-ink-50">
+                {auth.session ? t('settings.privacyAccount') : t('settings.privacyLocal')}
+              </strong>{' '}
+              {auth.session ? t('settings.privacyAccountBody') : t('settings.privacyLocalBody')}
             </p>
           </div>
         </div>
@@ -352,6 +467,7 @@ function NumberField({
   currency: string;
   onCommit: (value: number) => void;
 }) {
+  const { t } = useApp();
   const [draft, setDraft] = useState(String(value));
   const [lastValue, setLastValue] = useState(value);
 
@@ -380,7 +496,7 @@ function NumberField({
         className="field tnum"
       />
       <p className="mt-1.5 text-meta text-ink-500 dark:text-ink-400">
-        {help} Currently {money(value, currency)}.
+        {help} {t('settings.currently', { amount: money(value, currency) })}
       </p>
     </div>
   );
@@ -397,7 +513,7 @@ function CategorySheet({
   onClose: () => void;
   dark: boolean;
 }) {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, t } = useApp();
   const [draft, setDraft] = useState<Category | null>(null);
   const tintSet = tints(dark);
 
@@ -430,12 +546,12 @@ function CategorySheet({
         setDraft(null);
         onClose();
       }}
-      title={draft ? 'Category' : 'Manage categories'}
+      title={draft ? t('settings.categoryTitle') : t('settings.manageCategories')}
       footer={
         draft ? (
           <div className="flex gap-2.5">
             <button type="button" onClick={() => setDraft(null)} className="btn-quiet flex-1">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="button"
@@ -444,13 +560,13 @@ function CategorySheet({
               className="btn-primary flex-1"
             >
               <Check size={18} weight="bold" aria-hidden="true" />
-              Save
+              {t('common.save')}
             </button>
           </div>
         ) : (
           <button type="button" onClick={startNew} className="btn-primary">
             <Plus size={18} weight="bold" aria-hidden="true" />
-            New category
+            {t('settings.newCategory')}
           </button>
         )
       }
@@ -459,20 +575,20 @@ function CategorySheet({
         <div className="grid gap-4 pt-1">
           <div>
             <label htmlFor="cat-name" className="label">
-              Name
+              {t('settings.name')}
             </label>
             <input
               id="cat-name"
               data-autofocus
               value={draft.name}
               onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-              placeholder="Books, childcare, anything"
+              placeholder={t('settings.catNamePlaceholder')}
               className="field"
             />
           </div>
 
           <fieldset>
-            <legend className="label">Kind</legend>
+            <legend className="label">{t('settings.catKind')}</legend>
             <div className="flex gap-1 rounded-field bg-ink-100 p-1 dark:bg-night-raised">
               {(['expense', 'income'] as const).map((k) => (
                 <button
@@ -488,14 +604,14 @@ function CategorySheet({
                   }`}
                   style={draft.kind === k ? { border: '1px solid var(--hairline)' } : undefined}
                 >
-                  {k}
+                  {t(k === 'income' ? 'common.income' : 'common.expense')}
                 </button>
               ))}
             </div>
           </fieldset>
 
           <fieldset>
-            <legend className="label">Colour</legend>
+            <legend className="label">{t('palette.colour')}</legend>
             <div className="flex flex-wrap gap-2">
               {COLOR_KEYS.map((k: ColorKey) => {
                 const selected = draft.colorKey === k;
@@ -523,7 +639,7 @@ function CategorySheet({
           </fieldset>
 
           <fieldset>
-            <legend className="label">Icon</legend>
+            <legend className="label">{t('settings.icon')}</legend>
             <div className="grid grid-cols-7 gap-1.5">
               {CATEGORY_ICON_NAMES.map((name) => {
                 const Icon = iconFor(name);
@@ -564,14 +680,14 @@ function CategorySheet({
                     {c.name}
                   </p>
                   <p className="text-meta text-ink-500 dark:text-ink-400">
-                    {c.kind === 'income' ? 'Income' : 'Expense'} ·{' '}
-                    {used === 0 ? 'unused' : `${used} recorded`}
+                    {t(c.kind === 'income' ? 'common.moneyIn' : 'common.moneyOut')} ·{' '}
+                    {used === 0 ? t('settings.unused') : t('settings.nRecorded', { count: used })}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setDraft(c)}
-                  aria-label={`Edit ${c.name}`}
+                  aria-label={t('settings.editCategory', { name: c.name })}
                   className="press flex h-11 w-11 items-center justify-center rounded-full text-ink-600 dark:text-ink-300"
                 >
                   <PencilSimple size={17} aria-hidden="true" />
@@ -582,10 +698,10 @@ function CategorySheet({
                   disabled={used > 0}
                   aria-label={
                     used > 0
-                      ? `${c.name} cannot be deleted, ${used} transactions use it`
-                      : `Delete ${c.name}`
+                      ? t('settings.cannotDelete', { name: c.name, count: used })
+                      : t('settings.deleteCategory', { name: c.name })
                   }
-                  title={used > 0 ? `${used} transactions use this category` : undefined}
+                  title={used > 0 ? t('settings.nRecorded', { count: used }) : undefined}
                   className="press flex h-11 w-11 items-center justify-center rounded-full text-coral-text disabled:opacity-30 dark:text-[#F0B49B]"
                 >
                   <Trash size={17} aria-hidden="true" />

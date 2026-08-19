@@ -283,7 +283,8 @@ export interface DraftRow {
 export interface BuildResult {
   drafts: DraftRow[];
   /** Rows that could not be read at all, with the reason. */
-  rejected: { rowIndex: number; reason: string }[];
+  /** `reason` is a dictionary key; `detail` fills its {value} placeholder. */
+  rejected: { rowIndex: number; reason: string; detail?: string }[];
 }
 
 /** Same day, same amount, same merchant is a duplicate, near enough. */
@@ -312,7 +313,11 @@ export function buildDrafts(
     const rawDate = row[map.date] ?? '';
     const date = parseDate(rawDate, map.dateOrder);
     if (!date) {
-      rejected.push({ rowIndex: i, reason: `Could not read the date "${rawDate.slice(0, 20)}"` });
+      rejected.push({
+        rowIndex: i,
+        reason: 'csv.rejectDate',
+        detail: rawDate.slice(0, 20),
+      });
       return;
     }
 
@@ -328,7 +333,7 @@ export function buildDrafts(
     }
 
     if (signed === null || signed === 0) {
-      rejected.push({ rowIndex: i, reason: 'No amount on this row' });
+      rejected.push({ rowIndex: i, reason: 'csv.rejectAmount' });
       return;
     }
 

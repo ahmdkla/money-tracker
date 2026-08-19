@@ -22,6 +22,7 @@ interface ProfileRow {
   currency: string;
   dark_mode: ThemePref;
   ended_series: string[] | null;
+  lang: string | null;
 }
 
 interface CategoryRow {
@@ -143,6 +144,7 @@ export async function loadRemoteState(
     // A real account is never seeded with the sample month; the trigger only
     // creates categories and a couple of empty accounts.
     demoSeeded: false,
+    lang: (p?.lang as AppState['lang']) ?? 'id',
     accounts: ((accounts.data ?? []) as AccountRow[]).map((a) => ({
       id: a.id,
       name: a.name,

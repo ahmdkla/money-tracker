@@ -1,4 +1,6 @@
-import type { AppState } from '../types';
+import type { AppState, Category } from '../types';
+import { DEFAULT_LANG, isLang, type Lang } from './i18n';
+import { FALLBACK_EXPENSE_ID, FALLBACK_INCOME_ID, FALLBACK_NAMES } from './seed';
 
 const BASE_KEY = 'manimani.state.v1';
 
@@ -32,7 +34,20 @@ export const STORAGE_KEY = BASE_KEY;
  */
 const SEED_ONLY_IDS = ['acc_wallet', 'acc_savings', 'goal_buffer', 'goal_trip'];
 
+/*
+ * Merchant notes that only ever come from the sample month. The English ones
+ * are kept alongside the current Indonesian set so a browser holding a save
+ * from before the rewrite is still recognised as demo data rather than being
+ * treated as somebody's real records.
+ */
 const SEED_NOTES = [
+  // Current, Indonesian.
+  'Superindo', 'Indomaret', 'Alfamart', 'Kopi Kenangan', 'Kopi Tuku',
+  'Makan sama Sam', 'Ramen bareng Jo', 'Fisioterapi', 'Tambal gigi',
+  'Kursi kerja baru', 'Brunch akhir pekan', 'Warung dekat rumah',
+  'Makan ulang tahun', 'Tiket kereta', 'Membership gym', 'Token listrik',
+  'Sewa kos', 'Pesan GoFood',
+  // Previous, English.
   'Trader Joes', 'Blue Bottle', 'Dinner with Sam', 'Ramen with Jo',
   'Physio session', 'Dentist copay', 'New desk chair', 'Weekend brunch',
   'Corner market', 'Cafe Lune', 'Birthday dinner', 'Train tickets',
@@ -58,6 +73,39 @@ function looksLikeSeed(s: Partial<AppState>): boolean {
   return SEED_NOTES.filter((n) => notes.has(n)).length >= 3;
 }
 
+/**
+ * Guarantees the two catch-all categories exist.
+ *
+ * They were added after the first release, so a save from before it has
+ * neither, and a transaction saved without a category would have nowhere to
+ * land. Appending rather than replacing leaves everything the user has made.
+ */
+function withFallbackCategories(categories: Category[], lang: Lang): Category[] {
+  const names = FALLBACK_NAMES[lang] ?? FALLBACK_NAMES.id;
+  const missing: Category[] = [];
+
+  if (!categories.some((c) => c.id === FALLBACK_EXPENSE_ID)) {
+    missing.push({
+      id: FALLBACK_EXPENSE_ID,
+      name: names.expense,
+      icon: 'Tag',
+      colorKey: 'slate',
+      kind: 'expense',
+    });
+  }
+  if (!categories.some((c) => c.id === FALLBACK_INCOME_ID)) {
+    missing.push({
+      id: FALLBACK_INCOME_ID,
+      name: names.income,
+      icon: 'Tag',
+      colorKey: 'slate',
+      kind: 'income',
+    });
+  }
+
+  return missing.length ? [...categories, ...missing] : categories;
+}
+
 /** Narrow an unknown blob to AppState, or reject it. Used for load and import. */
 export function validateState(raw: unknown): AppState | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -78,6 +126,8 @@ export function validateState(raw: unknown): AppState | null {
   );
   if (!categoryOk || !txOk) return null;
 
+  const lang = isLang(s.lang) ? s.lang : DEFAULT_LANG;
+
   return {
     name: str(s.name) ? s.name! : 'there',
     monthlyIncome: s.monthlyIncome!,
@@ -88,7 +138,7 @@ export function validateState(raw: unknown): AppState | null {
         ? s.darkMode
         : 'system',
     transactions: s.transactions,
-    categories: s.categories,
+    categories: withFallbackCategories(s.categories, lang),
     budgets: Array.isArray(s.budgets) ? s.budgets : [],
     netWorthHistory: Array.isArray(s.netWorthHistory) ? s.netWorthHistory : [],
     // Added after the first release, so a file exported before it still loads.
@@ -98,6 +148,9 @@ export function validateState(raw: unknown): AppState | null {
     // An explicit false is a decision the user made, and is left alone. Only
     // a missing field gets inferred.
     demoSeeded: s.demoSeeded === true || (s.demoSeeded === undefined && looksLikeSeed(s)),
+    // Anything saved before the app was translated defaults to Indonesian,
+    // which is what a fresh install gets too.
+    lang,
     accounts: Array.isArray(s.accounts) ? s.accounts : [],
     transfers: Array.isArray(s.transfers) ? s.transfers : [],
     goals: Array.isArray(s.goals) ? s.goals : [],

@@ -1,4 +1,5 @@
 import type { AppState, Transaction } from '../types';
+import { formatLocale } from './format';
 import { round2 } from './format';
 
 /**
@@ -13,11 +14,11 @@ import { round2 } from './format';
 
 export type Granularity = 'day' | 'week' | 'month' | 'year';
 
-export const GRANULARITIES: { id: Granularity; label: string; buckets: number }[] = [
-  { id: 'day', label: 'Daily', buckets: 14 },
-  { id: 'week', label: 'Weekly', buckets: 12 },
-  { id: 'month', label: 'Monthly', buckets: 12 },
-  { id: 'year', label: 'Yearly', buckets: 5 },
+export const GRANULARITIES: { id: Granularity; key: string; buckets: number }[] = [
+  { id: 'day', key: 'reports.daily', buckets: 14 },
+  { id: 'week', key: 'reports.weekly', buckets: 12 },
+  { id: 'month', key: 'reports.monthly', buckets: 12 },
+  { id: 'year', key: 'reports.yearly', buckets: 5 },
 ];
 
 export interface Bucket {
@@ -63,7 +64,7 @@ function nextStart(d: Date, g: Granularity): Date {
   return stepBack(d, g, -1);
 }
 
-function labelFor(d: Date, g: Granularity, locale = 'en-US'): string {
+function labelFor(d: Date, g: Granularity, locale = formatLocale()): string {
   if (g === 'day') return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
   if (g === 'week') return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
   if (g === 'month') return d.toLocaleDateString(locale, { month: 'short' });

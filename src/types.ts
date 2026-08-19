@@ -1,5 +1,7 @@
 export type TxType = 'expense' | 'income';
 
+import type { Lang } from './lib/i18n';
+
 export type ThemePref = 'system' | 'light' | 'dark';
 
 /** Palette key that drives a category's chip tint. See CATEGORY_TINTS. */
@@ -100,6 +102,8 @@ export interface AppState {
   savingsGoalPerMonth: number;
   currency: string;
   darkMode: ThemePref;
+  /** Interface language. Indonesian by default. */
+  lang: Lang;
   accounts: Account[];
   transfers: Transfer[];
   goals: SavingsGoal[];

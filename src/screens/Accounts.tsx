@@ -4,7 +4,7 @@ import type { Account, AccountKind } from '../types';
 import { useApp } from '../store/AppContext';
 import {
   ACCOUNT_KINDS,
-  ACCOUNT_KIND_LABEL,
+  ACCOUNT_KIND_KEY,
   accountBalances,
   totalBalance,
   validateTransfer,
@@ -24,7 +24,7 @@ import { SectionHeader, Sheet } from '../components/primitives';
  * budgets or the category charts.
  */
 export function Accounts({ dark }: { dark: boolean }) {
-  const { state, dispatch, today } = useApp();
+  const { state, dispatch, today, t, relWords, locale } = useApp();
   const [editing, setEditing] = useState<Account | null>(null);
   const [accountSheet, setAccountSheet] = useState(false);
   const [transferSheet, setTransferSheet] = useState(false);
@@ -40,7 +40,9 @@ export function Accounts({ dark }: { dark: boolean }) {
   return (
     <div className="pb-24 desk:pb-8">
       <header className="flex flex-wrap items-center gap-3 px-gutter pb-3 pt-3 desk:pt-6">
-        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">Accounts</h1>
+        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">
+          {t('accounts.title')}
+        </h1>
         <span className="flex-1" />
         <button
           type="button"
@@ -49,7 +51,7 @@ export function Accounts({ dark }: { dark: boolean }) {
           className="btn-quiet min-h-[44px] px-3 text-meta disabled:opacity-40"
         >
           <ArrowsLeftRight size={17} aria-hidden="true" />
-          Transfer
+          {t('accounts.transfer')}
         </button>
         <button
           type="button"
@@ -60,7 +62,7 @@ export function Accounts({ dark }: { dark: boolean }) {
           className="btn-quiet min-h-[44px] px-3 text-meta"
         >
           <Plus size={17} weight="bold" aria-hidden="true" />
-          Add account
+          {t('accounts.addAccount')}
         </button>
       </header>
 
@@ -69,29 +71,27 @@ export function Accounts({ dark }: { dark: boolean }) {
         <section className="px-gutter desk:col-span-1 desk:px-0">
           <div className="rounded-hero bg-brand px-5 py-5 text-white">
             <p className="text-meta font-medium uppercase tracking-[0.09em] text-mint-soft">
-              Total balance
+              {t('accounts.totalBalance')}
             </p>
             <p className="tnum mt-1.5 font-display text-hero-sm">
               {moneyWhole(total, state.currency)}
             </p>
             <p className="mt-1 text-meta text-mint-soft">
-              Across {live.length} {live.length === 1 ? 'account' : 'accounts'}, counting only
-              what has already moved.
+              {t('accounts.totalHint', { count: live.length })}
             </p>
           </div>
         </section>
 
         {/* Accounts ------------------------------------------------------- */}
         <section className="px-gutter pt-5 desk:col-span-2 desk:px-0 desk:pt-0">
-          <SectionHeader title="Your accounts" />
+          <SectionHeader title={t('accounts.yours')} />
           {live.length === 0 ? (
             <div className="card">
               <p className="text-base font-medium text-ink-900 dark:text-ink-50">
-                No accounts yet
+                {t('accounts.emptyTitle')}
               </p>
               <p className="mt-1.5 text-meta leading-snug text-ink-600 dark:text-ink-300">
-                Add the places your money sits: a bank account, some cash, a wallet app. Every
-                transaction can then say where it came from.
+                {t('accounts.emptyBody')}
               </p>
             </div>
           ) : (
@@ -122,7 +122,7 @@ export function Accounts({ dark }: { dark: boolean }) {
                             {b.account.name}
                           </span>
                           <span className="block text-meta text-ink-500 dark:text-ink-400">
-                            {ACCOUNT_KIND_LABEL[b.account.kind]}
+                            {t(ACCOUNT_KIND_KEY[b.account.kind])}
                           </span>
                         </span>
                       </div>
@@ -137,11 +137,11 @@ export function Accounts({ dark }: { dark: boolean }) {
                       </p>
                       <p className="mt-1 text-meta text-ink-500 dark:text-ink-400">
                         {b.activity === 0
-                          ? 'Nothing recorded here yet'
-                          : `${money(b.moneyIn + b.transferredIn, state.currency)} in, ${money(
-                              b.moneyOut + b.transferredOut,
-                              state.currency,
-                            )} out`}
+                          ? t('accounts.nothingHere')
+                          : t('accounts.inOut', {
+                              moneyIn: money(b.moneyIn + b.transferredIn, state.currency),
+                              moneyOut: money(b.moneyOut + b.transferredOut, state.currency),
+                            })}
                       </p>
                     </button>
                   </li>
@@ -152,7 +152,7 @@ export function Accounts({ dark }: { dark: boolean }) {
 
           {archived.length > 0 && (
             <>
-              <SectionHeader title="Closed" />
+              <SectionHeader title={t('accounts.closed')} />
               <ul className="card divide-y" style={{ borderColor: 'var(--hairline)' }}>
                 {archived.map((b) => (
                   <li key={b.account.id} className="flex items-center gap-3 py-2.5">
@@ -172,7 +172,7 @@ export function Accounts({ dark }: { dark: boolean }) {
                       }
                       className="press min-h-[44px] rounded-chip px-2 text-meta font-medium text-brand-mid dark:text-mint"
                     >
-                      Reopen
+                      {t('accounts.reopen')}
                     </button>
                   </li>
                 ))}
@@ -184,44 +184,49 @@ export function Accounts({ dark }: { dark: boolean }) {
         {/* Transfers ------------------------------------------------------ */}
         <section className="px-gutter pt-5 desk:col-span-3 desk:px-0">
           <SectionHeader
-            title="Recent transfers"
+            title={t('accounts.recentTransfers')}
             icon={<ArrowsLeftRight size={13} weight="bold" aria-hidden="true" />}
           />
           <div className="card">
             {recentTransfers.length === 0 ? (
               <p className="py-1 text-meta leading-snug text-ink-500 dark:text-ink-400">
-                Nothing moved between accounts yet. A transfer is not spending, so it never
-                touches your daily number or your budgets.
+                {t('accounts.noTransfers')}
               </p>
             ) : (
               <ul className="divide-y" style={{ borderColor: 'var(--hairline)' }}>
-                {recentTransfers.map((t) => {
-                  const from = state.accounts.find((a) => a.id === t.fromAccountId);
-                  const to = state.accounts.find((a) => a.id === t.toAccountId);
+                {recentTransfers.map((tr) => {
+                  const from = state.accounts.find((a) => a.id === tr.fromAccountId);
+                  const to = state.accounts.find((a) => a.id === tr.toAccountId);
                   return (
-                    <li key={t.id} className="flex items-center gap-3 py-2.5">
+                    <li key={tr.id} className="flex items-center gap-3 py-2.5">
                       <div className="min-w-0 flex-1">
                         <p className="flex flex-wrap items-center gap-1.5 text-base text-ink-900 dark:text-ink-50">
-                          <span className="truncate font-medium">{from?.name ?? 'Account'}</span>
+                          <span className="truncate font-medium">
+                            {from?.name ?? t('nav.account')}
+                          </span>
                           <ArrowRight
                             size={14}
                             className="shrink-0 text-ink-400 dark:text-ink-500"
                             aria-hidden="true"
                           />
-                          <span className="truncate font-medium">{to?.name ?? 'Account'}</span>
+                          <span className="truncate font-medium">
+                            {to?.name ?? t('nav.account')}
+                          </span>
                         </p>
                         <p className="mt-0.5 truncate text-meta text-ink-500 dark:text-ink-400">
-                          {t.note ? `${t.note} · ` : ''}
-                          {relativeTime(t.date, today)}
+                          {tr.note ? `${tr.note} · ` : ''}
+                          {relativeTime(tr.date, today, relWords, locale)}
                         </p>
                       </div>
                       <span className="tnum shrink-0 text-base font-medium text-ink-900 dark:text-ink-50">
-                        {money(t.amount, state.currency)}
+                        {money(tr.amount, state.currency)}
                       </span>
                       <button
                         type="button"
-                        onClick={() => dispatch({ type: 'transfer/delete', id: t.id })}
-                        aria-label={`Delete transfer of ${money(t.amount, state.currency)}`}
+                        onClick={() => dispatch({ type: 'transfer/delete', id: tr.id })}
+                        aria-label={t('accounts.deleteTransferAria', {
+                          amount: money(tr.amount, state.currency),
+                        })}
                         className="press flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-400 dark:text-ink-500"
                       >
                         <Trash size={16} aria-hidden="true" />
@@ -259,7 +264,7 @@ function AccountSheet({
   editing: Account | null;
   dark: boolean;
 }) {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, t } = useApp();
   const [draft, setDraft] = useState<Account | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastKey, setLastKey] = useState('');
@@ -291,7 +296,7 @@ function AccountSheet({
   function save() {
     if (!draft) return;
     if (!draft.name.trim()) {
-      setError('Give the account a name.');
+      setError(t('accounts.errName'));
       return;
     }
     const clean = { ...draft, name: draft.name.trim() };
@@ -305,7 +310,7 @@ function AccountSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={editing ? 'Edit account' : 'Add account'}
+      title={t(editing ? 'accounts.editTitle' : 'accounts.addTitle')}
       footer={
         <div className="flex gap-2.5">
           {editing && (
@@ -319,11 +324,11 @@ function AccountSheet({
               style={{ border: '1px solid var(--hairline)' }}
             >
               <Trash size={18} aria-hidden="true" />
-              {inUse ? 'Close' : 'Delete'}
+              {t(inUse ? 'accounts.close' : 'common.delete')}
             </button>
           )}
           <button type="button" onClick={save} className="btn-primary flex-1">
-            Save
+            {t('common.save')}
           </button>
         </div>
       }
@@ -331,7 +336,7 @@ function AccountSheet({
       <div className="grid gap-4 pb-4 pt-1">
         <div>
           <label htmlFor="acc-name" className="label">
-            Name
+            {t('accounts.name')}
           </label>
           <input
             id="acc-name"
@@ -341,13 +346,13 @@ function AccountSheet({
               setDraft({ ...draft, name: e.target.value });
               setError(null);
             }}
-            placeholder="Current account, Cash, GoPay"
+            placeholder={t('accounts.namePlaceholder')}
             className="field"
           />
         </div>
 
         <fieldset>
-          <legend className="label">Kind</legend>
+          <legend className="label">{t('accounts.kind')}</legend>
           <div className="flex flex-wrap gap-1.5">
             {ACCOUNT_KINDS.map((k) => {
               const on = draft.kind === k.id;
@@ -367,7 +372,7 @@ function AccountSheet({
                   }`}
                   style={on ? undefined : { border: '1px solid var(--hairline)' }}
                 >
-                  {k.label}
+                  {t(k.key)}
                 </button>
               );
             })}
@@ -376,7 +381,7 @@ function AccountSheet({
 
         <div>
           <label htmlFor="acc-opening" className="label">
-            Balance right now
+            {t('accounts.openingBalance')}
           </label>
           <input
             id="acc-opening"
@@ -389,13 +394,12 @@ function AccountSheet({
             className="field tnum"
           />
           <p className="mt-1.5 text-meta leading-snug text-ink-500 dark:text-ink-400">
-            What is in it today, before anything recorded here. A card you owe money on can be
-            negative.
+            {t('accounts.openingHint')}
           </p>
         </div>
 
         <fieldset>
-          <legend className="label">Colour</legend>
+          <legend className="label">{t('palette.colour')}</legend>
           <div className="flex flex-wrap gap-2">
             {COLOR_KEYS.map((k) => {
               const on = draft.colorKey === k;
@@ -421,8 +425,7 @@ function AccountSheet({
 
         {inUse && (
           <p className="text-meta leading-snug text-ink-500 dark:text-ink-400">
-            This account has history, so closing it keeps the records and greys it out rather
-            than deleting anything.
+            {t('accounts.inUseHint')}
           </p>
         )}
 
@@ -439,7 +442,7 @@ function AccountSheet({
 /* --------------------------------------------------------- transfer form */
 
 function TransferSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, t } = useApp();
   const live = state.accounts.filter((a) => !a.archived);
 
   const [from, setFrom] = useState(live[0]?.id ?? '');
@@ -464,7 +467,7 @@ function TransferSheet({ open, onClose }: { open: boolean; onClose: () => void }
     const value = Number.parseFloat(amount);
     const problem = validateTransfer(state, from, to, value);
     if (problem) {
-      setError(problem);
+      setError(t(problem));
       return;
     }
     dispatch({
@@ -485,18 +488,18 @@ function TransferSheet({ open, onClose }: { open: boolean; onClose: () => void }
     <Sheet
       open={open}
       onClose={onClose}
-      title="Move money"
-      description="Between two of your own accounts. This is not spending, so it leaves your daily number alone."
+      title={t('accounts.moveTitle')}
+      description={t('accounts.moveSubtitle')}
       footer={
         <button type="button" onClick={submit} className="btn-primary">
-          Move it
+          {t('accounts.moveIt')}
         </button>
       }
     >
       <div className="grid gap-4 pb-4 pt-1">
         <div>
           <label htmlFor="tr-amount" className="label">
-            Amount
+            {t('common.amount')}
           </label>
           <input
             id="tr-amount"
@@ -515,7 +518,7 @@ function TransferSheet({ open, onClose }: { open: boolean; onClose: () => void }
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="tr-from" className="label">
-              Out of
+              {t('accounts.outOf')}
             </label>
             <select
               id="tr-from"
@@ -535,7 +538,7 @@ function TransferSheet({ open, onClose }: { open: boolean; onClose: () => void }
           </div>
           <div>
             <label htmlFor="tr-to" className="label">
-              Into
+              {t('accounts.into')}
             </label>
             <select
               id="tr-to"
@@ -557,13 +560,14 @@ function TransferSheet({ open, onClose }: { open: boolean; onClose: () => void }
 
         <div>
           <label htmlFor="tr-note" className="label">
-            Note <span className="font-normal text-ink-400">optional</span>
+            {t('common.note')}{' '}
+            <span className="font-normal text-ink-400">{t('common.optional')}</span>
           </label>
           <input
             id="tr-note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Cash for the week"
+            placeholder={t('accounts.notePlaceholder')}
             className="field"
           />
         </div>

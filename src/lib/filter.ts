@@ -120,7 +120,8 @@ export function filterTransactions(
 
 export interface DatePreset {
   id: string;
-  label: string;
+  /** Dictionary key, resolved by the screen that renders the chip. */
+  key: string;
   range: (today: Date) => { from: string; to: string };
 }
 
@@ -130,7 +131,7 @@ const iso = (d: Date) =>
 export const DATE_PRESETS: DatePreset[] = [
   {
     id: 'this-month',
-    label: 'This month',
+    key: 'transactions.thisMonth',
     range: (today) => ({
       from: iso(new Date(today.getFullYear(), today.getMonth(), 1)),
       to: iso(today),
@@ -138,7 +139,7 @@ export const DATE_PRESETS: DatePreset[] = [
   },
   {
     id: 'last-month',
-    label: 'Last month',
+    key: 'transactions.lastMonth',
     range: (today) => ({
       from: iso(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
       to: iso(new Date(today.getFullYear(), today.getMonth(), 0)),
@@ -146,7 +147,7 @@ export const DATE_PRESETS: DatePreset[] = [
   },
   {
     id: 'last-30',
-    label: 'Last 30 days',
+    key: 'transactions.last30',
     range: (today) => {
       const start = startOfDay(today);
       start.setDate(start.getDate() - 29);
@@ -155,7 +156,7 @@ export const DATE_PRESETS: DatePreset[] = [
   },
   {
     id: 'this-year',
-    label: 'This year',
+    key: 'transactions.thisYear',
     range: (today) => ({
       from: iso(new Date(today.getFullYear(), 0, 1)),
       to: iso(today),

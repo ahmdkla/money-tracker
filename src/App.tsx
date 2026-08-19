@@ -7,7 +7,7 @@ import {
   Drawer,
   FloatingAdd,
   Sidebar,
-  TAB_LABELS,
+  TAB_TITLE_KEYS,
   type Tab,
 } from './components/Navigation';
 import { TransactionSheet } from './components/TransactionSheet';
@@ -55,7 +55,7 @@ export default function App() {
 }
 
 function Shell() {
-  const { state, dispatch, today, auth } = useApp();
+  const { state, dispatch, today, auth, t } = useApp();
   const dark = useTheme(state.darkMode);
 
   const [tab, setTab] = useState<Tab>('home');
@@ -216,7 +216,7 @@ function Shell() {
         href="#main"
         className="sr-only-focusable fixed left-3 top-3 z-[70] rounded-field bg-brand px-4 py-2.5 text-meta font-medium text-white"
       >
-        Skip to main content
+        {t('nav.skipToMain')}
       </a>
 
       <Sidebar
@@ -228,7 +228,7 @@ function Shell() {
       />
 
       <AppBar
-        title={TAB_LABELS[tab]}
+        title={t(TAB_TITLE_KEYS[tab])}
         onMenu={() => setDrawerOpen(true)}
         onProfile={() => {
           // The profile control is a real button now. Signed in it goes to the
@@ -244,7 +244,7 @@ function Shell() {
           id="main"
           ref={main}
           tabIndex={-1}
-          aria-label={TAB_LABELS[tab]}
+          aria-label={t(TAB_TITLE_KEYS[tab])}
           className="mx-auto min-h-dvh w-full max-w-app outline-none desk:max-w-shell desk:px-4"
         >
           <Suspense fallback={<ScreenSkeleton />}>{screen}</Suspense>
@@ -281,7 +281,7 @@ function Shell() {
         editing={editing}
         dark={dark}
         onSaved={(m) => notify(m)}
-        onDeleted={() => notify('Deleted')}
+        onDeleted={() => notify(t('tx.deleted'))}
       />
 
       <Suspense fallback={null}>

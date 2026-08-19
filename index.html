@@ -1,14 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
     <!-- Zoom is never disabled. -->
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="description" content="manimani is a calm money tracker. It answers one question: are you okay to spend today?" />
+    <meta name="description" content="manimani, Brand New Day for Your Money. Aplikasi pencatat keuangan yang tenang: menjawab satu pertanyaan, aman tidak saya belanja hari ini?" />
+
+    <!-- SVG first for anything modern, PNG for the rest, and a dedicated
+         Apple size because iOS ignores SVG for the home screen. -->
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-title" content="manimani" />
+
+    <meta property="og:title" content="manimani, Brand New Day for Your Money" />
+    <meta property="og:description" content="Aplikasi pencatat keuangan yang tenang: menjawab satu pertanyaan, aman tidak saya belanja hari ini?" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
     <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0F1512" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
-    <title>manimani</title>
+    <title>manimani, Brand New Day for Your Money</title>
     <script>
       // Resolve the theme before first paint so there is no light flash on a
       // dark-mode load. Mirrors the logic in src/store/theme.ts.

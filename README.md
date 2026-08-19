@@ -1,5 +1,7 @@
 # manimani
 
+> **manimani, Brand New Day for Your Money**
+
 A calm money tracker that exists to answer one question the moment it opens:
 **am I okay to spend today?**
 
@@ -23,10 +25,20 @@ that run over say so plainly and suggest rebalancing rather than scolding.
   month.
 - **Import a CSV from your bank.** Column detection, a preview, and duplicate
   rows found and unticked before anything is committed.
+- **Bahasa Indonesia and English**, switchable from the top of the navigation
+  on any screen rather than buried in settings. Indonesian is the default, and
+  dates, numbers and the greeting all follow it.
+- **Rupiah, US dollar or ringgit**, and switching genuinely converts every
+  stored figure at the live rate rather than relabelling them. With no
+  connection the switch does not happen and says so.
 - **Search everything**, plus a command palette on `Ctrl`/`Cmd` + `K`.
 - **Two real layouts**: a sidebar application on desktop, a drawer and a
   floating action button on a phone. Not one scaled up.
-- Dark mode, full keyboard access, and it respects `prefers-reduced-motion`.
+- **Recording something takes seconds.** Direction, amount, account, and a
+  note; the category is guessed from the note and is optional, so nothing
+  blocks a save. Anything unmatched lands in a catch-all to fix later.
+- Dark mode, reachable from the same place as the language, full keyboard
+  access, and it respects `prefers-reduced-motion`.
 
 ## Running it
 
@@ -40,12 +52,28 @@ npm run dev        # http://localhost:5173
 | `npm run dev` | Development server |
 | `npm run build` | Type check, then a production build |
 | `npm run preview` | Serve the production build locally |
-| `npm test` | 97 unit tests over the money logic |
+| `npm test` | 140 unit tests over the money logic, translation and entry |
 
 It runs with no configuration at all. Without Supabase credentials the app is
 entirely local: it stores everything in `localStorage`, needs no server, and
 opens on a seeded demo month so the first screen has something to say. Adding
 credentials switches accounts on. See **[SETUP.md](SETUP.md)**.
+
+## Two decisions worth knowing about
+
+**Money is stored in whatever currency is selected, as a plain number.**
+Switching currency therefore rewrites every stored figure at the live rate
+(`src/lib/currency.ts`), because relabelling would silently turn fifty thousand
+rupiah into fifty thousand dollars. The rate comes from the network and there
+is deliberately no offline fallback: a guessed rate would quietly corrupt every
+number in the app, so a failed request cancels the switch and shows a message.
+
+**Translation is a dictionary and a lookup, not a library** (`src/lib/i18n.ts`).
+One namespace, both languages in the bundle, so switching is instant with
+nothing to fetch. Pure modules under `src/lib` never import it; they return
+dictionary keys and let the screen do the wording, which is why they stay
+testable without a React tree. A test asserts the two tables have not drifted
+apart.
 
 ## Built with
 

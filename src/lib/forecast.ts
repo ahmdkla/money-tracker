@@ -1,5 +1,5 @@
 import type { Transaction } from '../types';
-import { addDays, sameDay, sameMonth, startOfDay } from './date';
+import { addDays, sameDay, sameMonth, startOfDay, shortWeekday } from './date';
 import { round2 } from './format';
 import type { SafeToSpend } from './safeToSpend';
 
@@ -32,7 +32,12 @@ export interface Forecast {
   warning: { tx: Transaction; day: ForecastDay } | null;
 }
 
-export function buildForecast(s: SafeToSpend, today: Date = new Date()): Forecast {
+export function buildForecast(
+  s: SafeToSpend,
+  today: Date = new Date(),
+  /** What to call the first column. Passed in so this stays language free. */
+  todayWord = 'Today',
+): Forecast {
   const start = startOfDay(today);
   // A week of everyday spending. Above it there is room to absorb a surprise;
   // below it a single unexpected charge becomes a problem. It is drawn on the
@@ -62,7 +67,9 @@ export function buildForecast(s: SafeToSpend, today: Date = new Date()): Forecas
       bills,
       isToday: i === 0,
       isTight: projected < tightThreshold,
-      label: i === 0 ? 'Today' : date.toLocaleDateString('en-US', { weekday: 'short' }),
+      // The word for today comes from the caller; the weekday follows the
+      // formatting locale, which the language switch already sets.
+      label: i === 0 ? todayWord : shortWeekday(date),
     });
   }
 

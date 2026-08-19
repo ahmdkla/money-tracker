@@ -48,7 +48,7 @@ export function Transactions({
    */
   focusSearchToken?: number;
 }) {
-  const { state, today, categoryById } = useApp();
+  const { state, today, categoryById, t } = useApp();
   const [filter, setFilter] = useState<TxFilter>(EMPTY_FILTER);
   const [panelOpen, setPanelOpen] = useState(false);
   const search = useRef<HTMLInputElement>(null);
@@ -96,11 +96,13 @@ export function Transactions({
   return (
     <div className="pb-24 desk:pb-8">
       <header className="flex flex-wrap items-center gap-3 px-gutter pb-3 pt-3 desk:pt-6">
-        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">Transactions</h1>
+        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">
+          {t('transactions.title')}
+        </h1>
         <span className="flex-1" />
         <button type="button" onClick={onImport} className="btn-quiet min-h-[44px] px-3 text-meta">
           <FileArrowUp size={17} aria-hidden="true" />
-          Import CSV
+          {t('transactions.importCsv')}
         </button>
       </header>
 
@@ -114,14 +116,14 @@ export function Transactions({
               aria-hidden="true"
             />
             <label htmlFor="tx-search" className="sr-only">
-              Search transactions
+              {t('nav.searchTransactions')}
             </label>
             <input
               id="tx-search"
               ref={search}
               value={filter.text}
               onChange={(e) => set('text', e.target.value)}
-              placeholder="Search notes, categories, amounts"
+              placeholder={t('transactions.searchPlaceholder')}
               className="field pl-10"
               type="search"
               autoComplete="off"
@@ -135,7 +137,7 @@ export function Transactions({
             className="btn-quiet min-h-[48px] shrink-0 px-3 desk:hidden"
           >
             <FunnelSimple size={18} aria-hidden="true" />
-            Filters
+            {t('transactions.filters')}
             {count > 0 && (
               <span className="ml-0.5 rounded-full bg-brand px-1.5 text-micro font-semibold text-white dark:bg-mint dark:text-brand">
                 {count}
@@ -154,7 +156,7 @@ export function Transactions({
           <div className="card desk:sticky desk:top-6">
             <div className="flex items-center justify-between">
               <h2 className="text-meta font-medium uppercase tracking-[0.07em] text-ink-500 dark:text-ink-400">
-                Filters
+                {t('transactions.filters')}
               </h2>
               {active && (
                 <button
@@ -163,23 +165,23 @@ export function Transactions({
                   className="press -mr-1 flex min-h-[44px] items-center gap-1 rounded-chip px-2 text-meta font-medium text-brand-mid dark:text-mint"
                 >
                   <X size={13} weight="bold" aria-hidden="true" />
-                  Clear
+                  {t('common.clear')}
                 </button>
               )}
             </div>
 
             <fieldset className="mt-2">
-              <legend className="label">Direction</legend>
+              <legend className="label">{t('transactions.direction')}</legend>
               <div
                 className="flex gap-1 rounded-field bg-ink-100 p-1 dark:bg-night-raised"
                 role="radiogroup"
-                aria-label="Direction"
+                aria-label={t('transactions.direction')}
               >
                 {(
                   [
-                    ['all', 'All'],
-                    ['expense', 'Out'],
-                    ['income', 'In'],
+                    ['all', 'common.all'],
+                    ['expense', 'common.out'],
+                    ['income', 'common.in'],
                   ] as const
                 ).map(([v, label]) => (
                   <button
@@ -195,14 +197,14 @@ export function Transactions({
                     }`}
                     style={filter.type === v ? { border: '1px solid var(--hairline)' } : undefined}
                   >
-                    {label}
+                    {t(label)}
                   </button>
                 ))}
               </div>
             </fieldset>
 
             <fieldset className="mt-3">
-              <legend className="label">Period</legend>
+              <legend className="label">{t('transactions.period')}</legend>
               <div className="flex flex-wrap gap-1.5">
                 {DATE_PRESETS.map((p) => {
                   const r = p.range(today);
@@ -224,7 +226,7 @@ export function Transactions({
                       }`}
                       style={on ? undefined : { border: '1px solid var(--hairline)' }}
                     >
-                      {p.label}
+                      {t(p.key)}
                     </button>
                   );
                 })}
@@ -232,7 +234,7 @@ export function Transactions({
               <div className="mt-2 grid gap-2 sm:grid-cols-2 desk:grid-cols-1">
                 <div>
                   <label htmlFor="f-from" className="label">
-                    From
+                    {t('transactions.from')}
                   </label>
                   <input
                     id="f-from"
@@ -244,7 +246,7 @@ export function Transactions({
                 </div>
                 <div>
                   <label htmlFor="f-to" className="label">
-                    To
+                    {t('transactions.to')}
                   </label>
                   <input
                     id="f-to"
@@ -258,31 +260,31 @@ export function Transactions({
             </fieldset>
 
             <fieldset className="mt-3">
-              <legend className="label">Amount</legend>
+              <legend className="label">{t('common.amount')}</legend>
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label htmlFor="f-min" className="sr-only">
-                    Minimum amount
+                    {t('transactions.minAmount')}
                   </label>
                   <input
                     id="f-min"
                     value={filter.min}
                     onChange={(e) => set('min', e.target.value.replace(/[^0-9.]/g, ''))}
                     inputMode="decimal"
-                    placeholder="Min"
+                    placeholder={t('transactions.min')}
                     className="field tnum"
                   />
                 </div>
                 <div>
                   <label htmlFor="f-max" className="sr-only">
-                    Maximum amount
+                    {t('transactions.maxAmount')}
                   </label>
                   <input
                     id="f-max"
                     value={filter.max}
                     onChange={(e) => set('max', e.target.value.replace(/[^0-9.]/g, ''))}
                     inputMode="decimal"
-                    placeholder="Max"
+                    placeholder={t('transactions.max')}
                     className="field tnum"
                   />
                 </div>
@@ -290,7 +292,7 @@ export function Transactions({
             </fieldset>
 
             <fieldset className="mt-3">
-              <legend className="label">Categories</legend>
+              <legend className="label">{t('transactions.categories')}</legend>
               <div className="flex flex-wrap gap-1.5">
                 {state.categories.map((c) => {
                   const on = filter.categoryIds.includes(c.id);
@@ -324,7 +326,7 @@ export function Transactions({
               />
               <span className="flex items-center gap-1.5 text-ink-700 dark:text-ink-200">
                 <ArrowsClockwise size={14} aria-hidden="true" />
-                Fixed bills only
+                {t('transactions.billsOnly')}
               </span>
             </label>
           </div>
@@ -337,22 +339,24 @@ export function Transactions({
               <strong className="tnum font-semibold text-ink-900 dark:text-ink-50">
                 {totals.count}
               </strong>{' '}
-              {totals.count === 1 ? 'transaction' : 'transactions'}
-              {active ? ' matching' : ''}
+              {t(totals.count === 1 ? 'common.transaction' : 'common.transactions')}
+              {active ? ` ${t('transactions.matching')}` : ''}
             </p>
             {totals.spent > 0 && (
               <p className="text-meta text-ink-500 dark:text-ink-400">
-                Out <span className="tnum">{money(totals.spent, state.currency)}</span>
+                {t('common.out')} <span className="tnum">{money(totals.spent, state.currency)}</span>
               </p>
             )}
             {totals.received > 0 && (
               <p className="text-meta text-ink-500 dark:text-ink-400">
-                In <span className="tnum">{money(totals.received, state.currency)}</span>
+                {t('common.in')}{' '}
+                <span className="tnum">{money(totals.received, state.currency)}</span>
               </p>
             )}
             {totals.spent > 0 && totals.received > 0 && (
               <p className="text-meta text-ink-500 dark:text-ink-400">
-                Net <span className="tnum">{moneyWhole(totals.net, state.currency)}</span>
+                {t('transactions.net')}{' '}
+                <span className="tnum">{moneyWhole(totals.net, state.currency)}</span>
               </p>
             )}
           </div>
@@ -360,14 +364,18 @@ export function Transactions({
           {results.length === 0 ? (
             <div className="card">
               <p className="text-base font-medium text-ink-900 dark:text-ink-50">
-                {state.transactions.length === 0
-                  ? 'Nothing recorded yet'
-                  : 'Nothing matches those filters'}
+                {t(
+                  state.transactions.length === 0
+                    ? 'transactions.emptyTitle'
+                    : 'transactions.noMatchTitle',
+                )}
               </p>
               <p className="mt-1.5 text-meta leading-snug text-ink-600 dark:text-ink-300">
-                {state.transactions.length === 0
-                  ? 'Add one by hand, or import a CSV from your bank to bring a whole month across at once.'
-                  : 'Try widening the period or clearing a filter.'}
+                {t(
+                  state.transactions.length === 0
+                    ? 'transactions.emptyBody'
+                    : 'transactions.noMatchBody',
+                )}
               </p>
               {active && (
                 <button
@@ -375,7 +383,7 @@ export function Transactions({
                   onClick={() => setFilter(EMPTY_FILTER)}
                   className="btn-quiet mt-3 w-full"
                 >
-                  Clear filters
+                  {t('transactions.clearFilters')}
                 </button>
               )}
             </div>

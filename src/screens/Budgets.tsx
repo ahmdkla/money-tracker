@@ -18,14 +18,14 @@ const CALM = '#0F6E56';
 const NEAR = '#EF9F27';
 const OVER = '#F0997B';
 
-function toneFor(fraction: number): { colour: string; state: string } {
-  if (fraction > 1) return { colour: OVER, state: 'over the limit' };
-  if (fraction >= 0.8) return { colour: NEAR, state: 'close to the limit' };
-  return { colour: CALM, state: 'comfortably within the limit' };
+function toneFor(fraction: number): { colour: string; stateKey: string } {
+  if (fraction > 1) return { colour: OVER, stateKey: 'budgets.stateOver' };
+  if (fraction >= 0.8) return { colour: NEAR, stateKey: 'budgets.stateNear' };
+  return { colour: CALM, stateKey: 'budgets.stateCalm' };
 }
 
 export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransaction: () => void }) {
-  const { state, today, categoryById, dispatch } = useApp();
+  const { state, today, categoryById, dispatch, t } = useApp();
   const [editing, setEditing] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const currency = state.currency;
@@ -58,7 +58,9 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
   return (
     <div className="pb-24 desk:pb-8">
       <header className="px-gutter pb-3 pt-3 desk:pt-6">
-        <h1 className="text-lg font-medium text-ink-900 dark:text-ink-50">Budgets</h1>
+        <h1 className="text-lg font-medium text-ink-900 dark:text-ink-50">
+          {t('budgets.title')}
+        </h1>
         <p className="mt-0.5 text-meta text-ink-500 dark:text-ink-400">{monthLabel(today)}</p>
       </header>
 
@@ -66,11 +68,10 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
         {rows.length === 0 ? (
           <div className="card">
             <h2 className="text-base font-medium text-ink-900 dark:text-ink-50">
-              No limits set yet
+              {t('budgets.emptyTitle')}
             </h2>
             <p className="mt-1.5 text-meta leading-snug text-ink-600 dark:text-ink-300">
-              A budget is just a number you would rather not pass. Set one on a category you
-              want to keep an eye on, and this page will show you where it stands.
+              {t('budgets.emptyBody')}
             </p>
             <button
               type="button"
@@ -82,7 +83,7 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
               disabled={unbudgeted.length === 0}
             >
               <Plus size={18} weight="bold" aria-hidden="true" />
-              Set your first budget
+              {t('budgets.setFirst')}
             </button>
             {state.transactions.length === 0 && (
               <button
@@ -90,7 +91,7 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
                 onClick={onAddTransaction}
                 className="btn-quiet mt-2.5 w-full"
               >
-                Add a transaction first
+                {t('budgets.addFirstTx')}
               </button>
             )}
           </div>
@@ -108,18 +109,23 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
                       setSheetOpen(true);
                     }}
                     className="press w-full text-left"
-                    aria-label={`Edit the ${r.category?.name ?? 'category'} budget, ${money(
-                      r.spent,
-                      currency,
-                    )} of ${money(r.monthlyLimit, currency)}, ${tone.state}`}
+                    aria-label={t('budgets.editAria', {
+                      name: r.category?.name ?? t('common.category'),
+                      spent: money(r.spent, currency),
+                      limit: money(r.monthlyLimit, currency),
+                      state: t(tone.stateKey),
+                    })}
                   >
                     <div className="flex items-center gap-3">
                       <CategoryTile category={r.category} dark={dark} size="sm" />
                       <span className="min-w-0 flex-1 truncate text-base font-medium text-ink-900 dark:text-ink-50">
-                        {r.category?.name ?? 'Uncategorised'}
+                        {r.category?.name ?? t('common.uncategorised')}
                       </span>
                       <span className="tnum shrink-0 text-meta text-ink-600 dark:text-ink-300">
-                        {money(r.spent, currency)} of {money(r.monthlyLimit, currency)}
+                        {t('budgets.ofLimit', {
+                          spent: money(r.spent, currency),
+                          limit: money(r.monthlyLimit, currency),
+                        })}
                       </span>
                     </div>
 
@@ -127,27 +133,20 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
                       <ProgressBar
                         fraction={r.fraction}
                         tone={tone.colour}
-                        label={`${r.category?.name ?? 'Category'}, ${Math.round(
-                          r.fraction * 100,
-                        )} percent of the limit used`}
+                        label={t('budgets.percentUsed', {
+                          name: r.category?.name ?? t('common.category'),
+                          percent: Math.round(r.fraction * 100),
+                        })}
                         height={7}
                       />
                     </div>
 
                     <p className="mt-2 text-meta leading-snug text-ink-600 dark:text-ink-300">
-                      {r.fraction > 1 ? (
-                        <>
-                          This category ran high, {money(Math.abs(left), currency)} past the
-                          limit. Want to rebalance?
-                        </>
-                      ) : r.fraction >= 0.8 ? (
-                        <>
-                          {money(left, currency)} left. Getting close, and there is still time
-                          to steer.
-                        </>
-                      ) : (
-                        <>{money(left, currency)} left this month.</>
-                      )}
+                      {r.fraction > 1
+                        ? t('budgets.overCopy', { amount: money(Math.abs(left), currency) })
+                        : r.fraction >= 0.8
+                          ? t('budgets.nearCopy', { amount: money(left, currency) })
+                          : t('budgets.calmCopy', { amount: money(left, currency) })}
                     </p>
                   </button>
                 </li>
@@ -167,7 +166,7 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
             className="btn-quiet mt-3 w-full desk:max-w-[280px]"
           >
             <Plus size={18} weight="bold" aria-hidden="true" />
-            {unbudgeted.length === 0 ? 'Every category has a budget' : 'Add budget'}
+            {t(unbudgeted.length === 0 ? 'budgets.allCovered' : 'budgets.addBudget')}
           </button>
         )}
       </section>
@@ -196,7 +195,7 @@ function BudgetSheet({
   editingCategoryId: string | null;
   onRemove: (categoryId: string) => void;
 }) {
-  const { state, dispatch, categoryById } = useApp();
+  const { state, dispatch, categoryById, t } = useApp();
   const existing = editingCategoryId
     ? state.budgets.find((b) => b.categoryId === editingCategoryId)
     : undefined;
@@ -226,11 +225,11 @@ function BudgetSheet({
   function save() {
     const value = Number.parseFloat(limit);
     if (!categoryId) {
-      setError('Pick a category.');
+      setError(t('budgets.errCategory'));
       return;
     }
     if (!Number.isFinite(value) || value <= 0) {
-      setError('Enter a limit above zero.');
+      setError(t('budgets.errLimit'));
       return;
     }
     dispatch({ type: 'budget/set', budget: { categoryId, monthlyLimit: value } });
@@ -241,7 +240,7 @@ function BudgetSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title={existing ? 'Edit budget' : 'Add budget'}
+      title={t(existing ? 'budgets.editTitle' : 'budgets.addTitle')}
       footer={
         <div className="flex gap-2.5">
           {existing && (
@@ -252,11 +251,11 @@ function BudgetSheet({
               style={{ border: '1px solid var(--hairline)' }}
             >
               <Trash size={18} aria-hidden="true" />
-              Remove
+              {t('common.remove')}
             </button>
           )}
           <button type="button" onClick={save} className="btn-primary flex-1">
-            {existing ? 'Save' : 'Set budget'}
+            {t(existing ? 'common.save' : 'budgets.setBudget')}
           </button>
         </div>
       }
@@ -264,7 +263,7 @@ function BudgetSheet({
       <div key={key} className="grid gap-4 pt-1">
         <div>
           <label htmlFor="budget-category" className="label">
-            Category
+            {t('common.category')}
           </label>
           <select
             id="budget-category"
@@ -285,14 +284,14 @@ function BudgetSheet({
           </select>
           {existing && (
             <p className="mt-1.5 text-meta text-ink-500 dark:text-ink-400">
-              Remove this budget to move the limit to a different category.
+              {t('budgets.moveHint')}
             </p>
           )}
         </div>
 
         <div>
           <label htmlFor="budget-limit" className="label">
-            Monthly limit
+            {t('budgets.monthlyLimit')}
           </label>
           <input
             id="budget-limit"
@@ -306,8 +305,9 @@ function BudgetSheet({
             className="field tnum"
           />
           <p className="mt-1.5 text-meta text-ink-500 dark:text-ink-400">
-            {categoryById(categoryId)?.name ?? 'This category'} will show a calm bar until you
-            reach eighty percent of this.
+            {t('budgets.limitHint', {
+              name: categoryById(categoryId)?.name ?? t('common.category'),
+            })}
           </p>
         </div>
 

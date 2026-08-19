@@ -20,6 +20,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSupabase, isSupabaseConfigured } from '../lib/supabase';
 import { loadRemoteState, pushAction, replaceRemoteState } from '../lib/remote';
 import { SyncQueue, type SyncStatus } from '../lib/sync';
+import { DEFAULT_LANG, localeFor, translate, type Lang } from '../lib/i18n';
+import type { RelativeWords } from '../lib/date';
+import { setFormatLocale } from '../lib/format';
 
 interface AppContextValue {
   state: AppState;
@@ -31,6 +34,13 @@ interface AppContextValue {
   categoryById: (id: string) => Category | undefined;
   /** True once the first paint has happened; charts wait for it. */
   ready: boolean;
+  /** Current interface language, and the translator bound to it. */
+  lang: Lang;
+  t: (key: string, vars?: Record<string, string | number>) => string;
+  /** Words relativeTime needs, in the current language. */
+  relWords: RelativeWords;
+  /** Intl locale matching the language, for dates and numbers. */
+  locale: string;
   auth: AuthState;
   syncStatus: SyncStatus;
   /** Set when signing in over an empty account with local work to rescue. */
@@ -207,8 +217,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /* ------------------------------------------------------- derivations */
 
+  /* --------------------------------------------------------- language */
+
+  const lang: Lang = state.lang ?? DEFAULT_LANG;
+  const locale = localeFor(lang);
+
+  // Money and dates are formatted through Intl in a dozen places that have no
+  // business knowing about language. Setting it once here keeps them honest.
+  setFormatLocale(locale);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
+
+  const t = useCallback(
+    (key: string, vars?: Record<string, string | number>) => translate(lang, key, vars),
+    [lang],
+  );
+
+  // "Yesterday" is language rather than formatting, so relativeTime takes its
+  // words from here instead of hard-coding English.
+  const relWords = useMemo<RelativeWords>(
+    () => ({
+      tomorrow: translate(lang, 'common.tomorrow'),
+      inDays: (n) => translate(lang, 'common.inDays', { count: n }),
+      yesterday: translate(lang, 'common.yesterday'),
+      daysAgo: (n) => translate(lang, 'common.daysAgo', { count: n }),
+    }),
+    [lang],
+  );
+
   const safe = useMemo(() => computeSafeToSpend(state, today), [state, today]);
-  const forecast = useMemo(() => buildForecast(safe, today), [safe, today]);
+  const forecast = useMemo(
+    () => buildForecast(safe, today, translate(lang, 'common.today')),
+    [safe, today, lang],
+  );
 
   const categoryIndex = useMemo(() => {
     const map = new Map<string, Category>();
@@ -224,6 +267,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       forecast,
       today,
       ready,
+      lang,
+      t,
+      locale,
+      relWords,
       auth,
       syncStatus,
       pendingImport,
@@ -240,6 +287,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       forecast,
       today,
       ready,
+      lang,
+      t,
+      locale,
+      relWords,
       auth,
       syncStatus,
       pendingImport,

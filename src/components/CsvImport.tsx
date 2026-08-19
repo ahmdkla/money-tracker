@@ -35,12 +35,14 @@ export function CsvImport({
   dark: boolean;
   notify: (message: string, tone?: 'neutral' | 'warning') => void;
 }) {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, t, locale } = useApp();
   const [stage, setStage] = useState<Stage>('pick');
   const [rows, setRows] = useState<string[][]>([]);
   const [map, setMap] = useState<ColumnMap | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
-  const [rejected, setRejected] = useState<{ rowIndex: number; reason: string }[]>([]);
+  const [rejected, setRejected] = useState<
+    { rowIndex: number; reason: string; detail?: string }[]
+  >([]);
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState(0);
@@ -79,7 +81,7 @@ export function CsvImport({
       try {
         const parsed = parseCsv(String(reader.result));
         if (parsed.length < 2) {
-          setError('That file has no rows in it that we could read.');
+          setError(t('csv.errNoRows'));
           return;
         }
         const guessed = guessColumns(parsed);
@@ -88,10 +90,10 @@ export function CsvImport({
         rebuild(parsed, guessed);
         setStage('map');
       } catch {
-        setError('That file could not be read as a CSV.');
+        setError(t('csv.errNotCsv'));
       }
     };
-    reader.onerror = () => setError('That file could not be read.');
+    reader.onerror = () => setError(t('csv.errUnreadable'));
     reader.readAsText(file);
   }
 
@@ -104,10 +106,11 @@ export function CsvImport({
 
   const headers = useMemo(() => {
     if (!rows.length) return [];
+    const fallback = (i: number) => t('csv.columnN', { n: i + 1 });
     return map?.hasHeader
-      ? rows[0].map((h, i) => h.trim() || `Column ${i + 1}`)
-      : rows[0].map((_, i) => `Column ${i + 1}`);
-  }, [rows, map]);
+      ? rows[0].map((h, i) => h.trim() || fallback(i))
+      : rows[0].map((_, i) => fallback(i));
+  }, [rows, map, t]);
 
   const ready = drafts.filter((d) => d.include && d.categoryId);
   const needsCategory = drafts.filter((d) => d.include && !d.categoryId);
@@ -117,13 +120,13 @@ export function CsvImport({
   function commit() {
     const txs = draftsToTransactions(drafts);
     if (txs.length === 0) {
-      setError('Nothing is selected to import.');
+      setError(t('csv.errNothingSelected'));
       return;
     }
     dispatch({ type: 'tx/add-many', transactions: txs });
     setAdded(txs.length);
     setStage('done');
-    notify(`Imported ${txs.length} ${txs.length === 1 ? 'transaction' : 'transactions'}`);
+    notify(t('csv.importedToast', { count: txs.length }));
   }
 
   const setDraft = (i: number, patch: Partial<DraftRow>) =>
@@ -136,19 +139,19 @@ export function CsvImport({
         reset();
         onClose();
       }}
-      title={stage === 'done' ? 'Imported' : 'Import from your bank'}
+      title={t(stage === 'done' ? 'csv.importedTitle' : 'csv.title')}
       description={
         stage === 'pick'
-          ? 'Export a CSV from your bank, then bring a whole month across at once.'
+          ? t('csv.pickSubtitle')
           : stage === 'map'
-            ? 'Check the columns look right before anything is added.'
+            ? t('csv.mapSubtitle')
             : undefined
       }
       footer={
         stage === 'map' ? (
           <div className="flex gap-2.5">
             <button type="button" onClick={reset} className="btn-quiet flex-1">
-              Start over
+              {t('common.startOver')}
             </button>
             <button
               type="button"
@@ -156,7 +159,7 @@ export function CsvImport({
               disabled={ready.length === 0}
               className="btn-primary flex-1"
             >
-              Import {ready.length > 0 ? ready.length : ''}
+              {t('csv.importN', { count: ready.length > 0 ? ready.length : '' })}
             </button>
           </div>
         ) : stage === 'done' ? (
@@ -168,7 +171,7 @@ export function CsvImport({
             }}
             className="btn-primary"
           >
-            Done
+            {t('common.done')}
           </button>
         ) : undefined
       }
@@ -185,10 +188,10 @@ export function CsvImport({
           >
             <FileArrowUp size={28} className="text-ink-500 dark:text-ink-400" aria-hidden="true" />
             <span className="text-base font-medium text-ink-900 dark:text-ink-50">
-              Choose a CSV file
+              {t('csv.chooseFile')}
             </span>
             <span className="text-meta text-ink-500 dark:text-ink-400">
-              Most banks have an Export or Download button on the statements page.
+              {t('csv.chooseHint')}
             </span>
           </button>
           <input
@@ -202,8 +205,7 @@ export function CsvImport({
           />
 
           <p className="mt-4 text-meta leading-snug text-ink-500 dark:text-ink-400">
-            The file is read here in your browser and never uploaded anywhere. Dates and amounts
-            are detected automatically, and anything already recorded is spotted and left out.
+            {t('csv.privacy')}
           </p>
 
           {error && (
@@ -222,30 +224,30 @@ export function CsvImport({
           <div className="grid gap-2.5 sm:grid-cols-2">
             <ColumnPicker
               id="csv-date"
-              label="Date column"
+              label={t('csv.dateColumn')}
               headers={headers}
               value={map.date}
               onChange={(v) => updateMap({ date: v })}
             />
             <ColumnPicker
               id="csv-desc"
-              label="Description column"
+              label={t('csv.descColumn')}
               headers={headers}
               value={map.description}
               onChange={(v) => updateMap({ description: v })}
             />
             <ColumnPicker
               id="csv-amount"
-              label="Amount column"
+              label={t('csv.amountColumn')}
               headers={headers}
               value={map.amount}
               onChange={(v) => updateMap({ amount: v })}
               allowNone
-              noneLabel="Separate in and out columns"
+              noneLabel={t('csv.separateColumns')}
             />
             <div>
               <label htmlFor="csv-order" className="label">
-                Date format
+                {t('csv.dateFormat')}
               </label>
               <select
                 id="csv-order"
@@ -253,10 +255,10 @@ export function CsvImport({
                 onChange={(e) => updateMap({ dateOrder: e.target.value as DateOrder })}
                 className="field"
               >
-                <option value="auto">Detect automatically</option>
-                <option value="dmy">Day first (31/12/2026)</option>
-                <option value="mdy">Month first (12/31/2026)</option>
-                <option value="ymd">Year first (2026-12-31)</option>
+                <option value="auto">{t('csv.autoDetect')}</option>
+                <option value="dmy">{t('csv.dayFirst')}</option>
+                <option value="mdy">{t('csv.monthFirst')}</option>
+                <option value="ymd">{t('csv.yearFirst')}</option>
               </select>
             </div>
 
@@ -264,7 +266,7 @@ export function CsvImport({
               <>
                 <ColumnPicker
                   id="csv-debit"
-                  label="Money out column"
+                  label={t('csv.outColumn')}
                   headers={headers}
                   value={map.debit}
                   onChange={(v) => updateMap({ debit: v })}
@@ -272,7 +274,7 @@ export function CsvImport({
                 />
                 <ColumnPicker
                   id="csv-credit"
-                  label="Money in column"
+                  label={t('csv.inColumn')}
                   headers={headers}
                   value={map.credit}
                   onChange={(v) => updateMap({ credit: v })}
@@ -291,7 +293,7 @@ export function CsvImport({
                 className="h-5 w-5 accent-brand-mid"
               />
               <span className="text-ink-700 dark:text-ink-200">
-                A positive number in this column means money going out
+                {t('csv.positiveIsExpense')}
               </span>
             </label>
           )}
@@ -303,31 +305,34 @@ export function CsvImport({
               onChange={(e) => updateMap({ hasHeader: e.target.checked })}
               className="h-5 w-5 accent-brand-mid"
             />
-            <span className="text-ink-700 dark:text-ink-200">The first row is column names</span>
+            <span className="text-ink-700 dark:text-ink-200">{t('csv.firstRowHeader')}</span>
           </label>
 
           {/* Summary --------------------------------------------------- */}
           <div className="mt-4 grid gap-1.5">
             <Note tone="good">
-              {ready.length} ready to import
-              {duplicates.length > 0 ? `, ${duplicates.length} already recorded and unticked` : ''}
+              {duplicates.length > 0
+                ? t('csv.readyDupes', { count: ready.length, dupes: duplicates.length })
+                : t('csv.ready', { count: ready.length })}
             </Note>
             {needsCategory.length > 0 && (
               <Note tone="warn">
-                {needsCategory.length} could not be matched to a category. Pick one below, or
-                untick them. Nothing is imported without a category.
+                {t('csv.needCategory', { count: needsCategory.length })}
               </Note>
             )}
             {rejected.length > 0 && (
               <Note tone="warn">
-                {rejected.length} rows could not be read: {rejected[0].reason}
+                {t('csv.rejected', {
+                  count: rejected.length,
+                  reason: t(rejected[0].reason, { value: rejected[0].detail ?? '' }),
+                })}
               </Note>
             )}
           </div>
 
           {/* Preview --------------------------------------------------- */}
           <h3 className="mb-1.5 mt-4 text-meta font-medium uppercase tracking-[0.07em] text-ink-500 dark:text-ink-400">
-            Preview
+            {t('csv.preview')}
           </h3>
           <ul className="divide-y" style={{ borderColor: 'var(--hairline)' }}>
             {drafts.slice(0, 60).map((d, i) => {
@@ -338,13 +343,15 @@ export function CsvImport({
                     type="checkbox"
                     checked={d.include}
                     onChange={(e) => setDraft(i, { include: e.target.checked })}
-                    aria-label={`Include ${d.description || 'row'}`}
+                    aria-label={t('csv.includeAria', {
+                      name: d.description || t('csv.noDescription'),
+                    })}
                     className="mt-2.5 h-5 w-5 shrink-0 accent-brand-mid"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="flex items-baseline gap-2">
                       <span className="min-w-0 flex-1 truncate text-meta font-medium text-ink-900 dark:text-ink-50">
-                        {d.description || 'No description'}
+                        {d.description || t('csv.noDescription')}
                       </span>
                       <span
                         className={`tnum shrink-0 text-meta font-medium ${
@@ -358,17 +365,19 @@ export function CsvImport({
                       </span>
                     </p>
                     <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-micro text-ink-500 dark:text-ink-400">
-                      <span className="tnum">{d.date.toLocaleDateString('en-US')}</span>
+                      <span className="tnum">{d.date.toLocaleDateString(locale)}</span>
                       {d.duplicateOf && (
                         <span className="rounded-chip bg-amber-soft px-1.5 font-medium text-amber-text dark:bg-[#332810] dark:text-[#F0C176]">
-                          Already recorded
+                          {t('csv.alreadyRecorded')}
                         </span>
                       )}
                     </p>
                     <select
                       value={d.categoryId ?? ''}
                       onChange={(e) => setDraft(i, { categoryId: e.target.value || null })}
-                      aria-label={`Category for ${d.description || 'row'}`}
+                      aria-label={t('csv.categoryAria', {
+                        name: d.description || t('csv.noDescription'),
+                      })}
                       className="mt-1.5 w-full rounded-chip px-2 py-1.5 text-micro"
                       style={{
                         border: '1px solid var(--hairline)',
@@ -376,7 +385,7 @@ export function CsvImport({
                         color: cat ? tintSet[cat.colorKey].fg : undefined,
                       }}
                     >
-                      <option value="">Pick a category</option>
+                      <option value="">{t('csv.pickCategory')}</option>
                       {state.categories
                         .filter((c) => c.kind === d.type)
                         .map((c) => (
@@ -392,7 +401,7 @@ export function CsvImport({
           </ul>
           {drafts.length > 60 && (
             <p className="pt-2 text-meta text-ink-500 dark:text-ink-400">
-              Showing the first 60 of {drafts.length}. All of the ticked rows are imported.
+              {t('csv.showingFirst', { count: drafts.length })}
             </p>
           )}
 
@@ -411,8 +420,7 @@ export function CsvImport({
             <CheckCircle size={24} aria-hidden="true" />
           </p>
           <p className="mt-3 text-base leading-snug text-ink-800 dark:text-ink-100">
-            {added} {added === 1 ? 'transaction' : 'transactions'} added. Your safe to spend
-            number has been recalculated.
+            {t('csv.importedBody', { count: added })}
           </p>
         </div>
       )}
@@ -427,7 +435,7 @@ function ColumnPicker({
   value,
   onChange,
   allowNone,
-  noneLabel = 'Not in this file',
+  noneLabel,
 }: {
   id: string;
   label: string;
@@ -437,6 +445,7 @@ function ColumnPicker({
   allowNone?: boolean;
   noneLabel?: string;
 }) {
+  const { t } = useApp();
   return (
     <div>
       <label htmlFor={id} className="label">
@@ -448,7 +457,7 @@ function ColumnPicker({
         onChange={(e) => onChange(Number(e.target.value))}
         className="field"
       >
-        {allowNone && <option value={-1}>{noneLabel}</option>}
+        {allowNone && <option value={-1}>{noneLabel ?? t('csv.notInFile')}</option>}
         {headers.map((h, i) => (
           <option key={i} value={i}>
             {h}

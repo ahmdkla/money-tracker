@@ -1,0 +1,17 @@
+{
+  "name": "manimani, Brand New Day for Your Money",
+  "short_name": "manimani",
+  "description": "Aplikasi pencatat keuangan yang tenang. Menjawab satu pertanyaan: aman tidak saya belanja hari ini?",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0E3A2F",
+  "theme_color": "#0E3A2F",
+  "orientation": "any",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

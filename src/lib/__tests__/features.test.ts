@@ -33,7 +33,7 @@ describe('expandRecurring', () => {
     const { created } = expandRecurring(state, TODAY);
     const netflix = created.find((t) => t.note === 'Netflix');
     expect(netflix).toBeDefined();
-    expect(netflix!.amount).toBe(15.49);
+    expect(netflix!.amount).toBe(65_000);
     expect(netflix!.categoryId).toBe('cat_subs');
   });
 
@@ -56,7 +56,7 @@ describe('expandRecurring', () => {
   });
 
   it('leaves a stopped series alone', () => {
-    const rent = state.transactions.find((t) => t.note === 'Rent')!;
+    const rent = state.transactions.find((t) => t.note === 'Sewa kos')!;
     const key = seriesKey(rent);
     const stopped = { ...state, endedSeries: [key] };
     const { created, skippedSeries } = expandRecurring(stopped, TODAY);
@@ -75,7 +75,7 @@ describe('expandRecurring', () => {
 
 describe('stopping a series', () => {
   const state = createSeedState(TODAY);
-  const rent = state.transactions.find((t) => t.note === 'Rent')!;
+  const rent = state.transactions.find((t) => t.note === 'Sewa kos')!;
   const key = seriesKey(rent);
 
   it('removes future instances but keeps what has already been paid', () => {
@@ -117,14 +117,14 @@ describe('filterTransactions', () => {
 
   it('searches notes, category names and amounts', () => {
     expect(
-      filterTransactions(all, cats, { ...EMPTY_FILTER, text: 'blue bottle' }).length,
+      filterTransactions(all, cats, { ...EMPTY_FILTER, text: 'kopi kenangan' }).length,
     ).toBeGreaterThan(0);
-    const byCategory = filterTransactions(all, cats, { ...EMPTY_FILTER, text: 'groceries' });
+    const byCategory = filterTransactions(all, cats, { ...EMPTY_FILTER, text: 'belanja' });
     expect(byCategory.every((t) => t.categoryId === 'cat_groceries')).toBe(true);
-    // Rent is 680 in both seeded months, so an amount search finds both.
-    const byAmount = filterTransactions(all, cats, { ...EMPTY_FILTER, text: '680' });
+    // Rent is 2,800,000 in both seeded months, so an amount search finds both.
+    const byAmount = filterTransactions(all, cats, { ...EMPTY_FILTER, text: '2800000' });
     expect(byAmount).toHaveLength(2);
-    expect(byAmount.every((t) => t.note === 'Rent')).toBe(true);
+    expect(byAmount.every((t) => t.note === 'Sewa kos')).toBe(true);
   });
 
   it('filters by direction', () => {
@@ -158,8 +158,8 @@ describe('filterTransactions', () => {
   });
 
   it('filters by amount, and by bills only', () => {
-    const big = filterTransactions(all, cats, { ...EMPTY_FILTER, min: '100' });
-    expect(big.every((t) => t.amount >= 100)).toBe(true);
+    const big = filterTransactions(all, cats, { ...EMPTY_FILTER, min: '300000' });
+    expect(big.every((t) => t.amount >= 300_000)).toBe(true);
 
     const bills = filterTransactions(all, cats, { ...EMPTY_FILTER, recurringOnly: true });
     expect(bills.every((t) => t.recurring)).toBe(true);
@@ -170,9 +170,13 @@ describe('filterTransactions', () => {
       ...EMPTY_FILTER,
       type: 'expense',
       categoryIds: ['cat_groceries'],
-      min: '100',
+      min: '300000',
     });
-    expect(r.every((t) => t.type === 'expense' && t.categoryId === 'cat_groceries' && t.amount >= 100)).toBe(true);
+    expect(
+      r.every(
+        (t) => t.type === 'expense' && t.categoryId === 'cat_groceries' && t.amount >= 300_000,
+      ),
+    ).toBe(true);
   });
 
   it('counts what is active, for the badge', () => {
@@ -182,11 +186,11 @@ describe('filterTransactions', () => {
   });
 
   it('totals what survived', () => {
-    // Two seeded months, paid semi-monthly: four payrolls of 1840.
+    // Two seeded months, paid semi-monthly: four payrolls of 6,000,000.
     const s = summarise(filterTransactions(all, cats, { ...EMPTY_FILTER, type: 'income' }));
-    expect(s.received).toBe(7360);
+    expect(s.received).toBe(24_000_000);
     expect(s.spent).toBe(0);
-    expect(s.net).toBe(7360);
+    expect(s.net).toBe(24_000_000);
   });
 });
 
@@ -227,8 +231,8 @@ describe('csv parsing', () => {
   it('guesses the columns from the header row', () => {
     const rows = parseCsv(
       'Transaction Date,Description,Amount\n' +
-        '01/08/2026,TESCO STORES,-42.10\n' +
-        '02/08/2026,SALARY,1840.00\n',
+        '01/08/2026,SUPERINDO,-42100\n' +
+        '02/08/2026,GAJI,6000000\n',
     );
     const map = guessColumns(rows);
     expect(map.hasHeader).toBe(true);
@@ -241,9 +245,9 @@ describe('csv parsing', () => {
     const state = createSeedState(TODAY);
     const rows = parseCsv(
       'Date,Description,Amount\n' +
-        '2026-08-25,STARBUCKS STORE 4471,-5.25\n' +
-        '2026-08-25,UBER TRIP,-18.40\n' +
-        '2026-08-26,MYSTERY VENDOR,-9.99\n',
+        '2026-08-25,KOPI KENANGAN GRAND INDO,-25000\n' +
+        '2026-08-25,GOJEK RIDE,-18400\n' +
+        '2026-08-26,MYSTERY VENDOR,-9999\n',
     );
     const map = guessColumns(rows);
     const { drafts, rejected } = buildDrafts(rows, map, SEED_CATEGORIES, state.transactions);
@@ -258,21 +262,21 @@ describe('csv parsing', () => {
     expect(drafts[2].categoryId).toBeNull();
 
     expect(drafts.every((d) => d.type === 'expense')).toBe(true);
-    expect(drafts[0].amount).toBe(5.25);
+    expect(drafts[0].amount).toBe(25000);
   });
 
   it('finds the merchant inside a mangled bank description', () => {
     const rows = parseCsv(
       'Date,Description,Amount\n' +
-        '2026-08-21,"NETFLIX.COM, AMSTERDAM",-15.49\n' +
-        '2026-08-21,UBER   *TRIP HELP.UBER.CO,-18.40\n' +
-        '2026-08-21,TESCO-STORES-3299,-42.10\n' +
-        '2026-08-22,ACME LTD SALARY,1840.00\n',
+        '2026-08-21,"NETFLIX.COM, AMSTERDAM",-65000\n' +
+        '2026-08-21,GOJEK   *TRIP HELP.GOJEK.CO,-18400\n' +
+        '2026-08-21,INDOMARET-3299,-42100\n' +
+        '2026-08-22,PT ACME GAJI,6000000\n',
     );
     const { drafts } = buildDrafts(rows, guessColumns(rows), SEED_CATEGORIES, []);
     expect(drafts[0].categoryId).toBe('cat_subs');      // NETFLIX.COM
-    expect(drafts[1].categoryId).toBe('cat_transport'); // UBER *TRIP
-    expect(drafts[2].categoryId).toBe('cat_groceries'); // TESCO-STORES
+    expect(drafts[1].categoryId).toBe('cat_transport'); // GOJEK *TRIP
+    expect(drafts[2].categoryId).toBe('cat_groceries'); // INDOMARET
     expect(drafts[3].categoryId).toBe('cat_payroll');   // and income still works
     expect(drafts[3].type).toBe('income');
   });
@@ -280,7 +284,7 @@ describe('csv parsing', () => {
   it('does not guess from a short fragment inside an unrelated word', () => {
     // "gas" lives inside "Vegas"; a confident wrong category is worse than none.
     const rows = parseCsv(
-      'Date,Description,Amount\n2026-08-21,VEGAS HOTEL,-220.00\n',
+      'Date,Description,Amount\n2026-08-21,VEGAS HOTEL,-2200000\n',
     );
     const { drafts } = buildDrafts(rows, guessColumns(rows), SEED_CATEGORIES, []);
     expect(drafts[0].categoryId).toBeNull();
@@ -288,11 +292,11 @@ describe('csv parsing', () => {
 
   it('unticks a row that is already recorded', () => {
     const state = createSeedState(TODAY);
-    const existing = state.transactions.find((t) => t.note === 'Blue Bottle')!;
+    const existing = state.transactions.find((t) => t.note === 'Kopi Kenangan')!;
     const d = new Date(existing.date);
     const line = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-    const rows = parseCsv(`Date,Description,Amount\n${line},Blue Bottle,-${existing.amount}\n`);
+    const rows = parseCsv(`Date,Description,Amount\n${line},Kopi Kenangan,-${existing.amount}\n`);
     const map = guessColumns(rows);
     const { drafts } = buildDrafts(rows, map, SEED_CATEGORIES, state.transactions);
 
@@ -302,7 +306,7 @@ describe('csv parsing', () => {
 
   it('reads separate money in and money out columns', () => {
     const rows = parseCsv(
-      'Date,Details,Paid out,Paid in\n2026-08-01,RENT,680.00,\n2026-08-03,PAYROLL,,1840.00\n',
+      'Date,Details,Paid out,Paid in\n2026-08-01,SEWA,2800000,\n2026-08-03,GAJI,,6000000\n',
     );
     const map = guessColumns(rows);
     expect(map.debit).toBeGreaterThanOrEqual(0);
@@ -310,8 +314,8 @@ describe('csv parsing', () => {
 
     const { drafts } = buildDrafts(rows, { ...map, amount: -1 }, SEED_CATEGORIES, []);
     expect(drafts[0].type).toBe('expense');
-    expect(drafts[0].amount).toBe(680);
+    expect(drafts[0].amount).toBe(2_800_000);
     expect(drafts[1].type).toBe('income');
-    expect(drafts[1].amount).toBe(1840);
+    expect(drafts[1].amount).toBe(6_000_000);
   });
 });

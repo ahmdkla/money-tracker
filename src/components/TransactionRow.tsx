@@ -2,6 +2,7 @@ import { ArrowsClockwise } from '@phosphor-icons/react';
 import type { Category, Transaction } from '../types';
 import { relativeTime } from '../lib/date';
 import { signedMoney } from '../lib/format';
+import { useApp } from '../store/AppContext';
 import { CategoryTile } from './primitives';
 
 /**
@@ -25,8 +26,9 @@ export function TransactionRow({
   today: Date;
   onSelect?: (tx: Transaction) => void;
 }) {
-  const title = tx.note?.trim() || category?.name || 'Transaction';
-  const when = relativeTime(tx.date, today);
+  const { t, relWords, locale } = useApp();
+  const title = tx.note?.trim() || category?.name || t('common.transaction');
+  const when = relativeTime(tx.date, today, relWords, locale);
   const amount = signedMoney(tx.amount, tx.type, currency);
 
   const body = (
@@ -47,8 +49,8 @@ export function TransactionRow({
           )}
         </span>
         <span className="mt-0.5 block truncate text-meta text-ink-500 dark:text-ink-400">
-          {category?.name ?? 'Uncategorised'} · {when}
-          {tx.recurring ? ' · Recurring' : ''}
+          {category?.name ?? t('common.uncategorised')} · {when}
+          {tx.recurring ? ` · ${t('common.recurring')}` : ''}
         </span>
       </span>
       <span
@@ -70,7 +72,7 @@ export function TransactionRow({
       type="button"
       onClick={() => onSelect(tx)}
       className="press flex w-full items-center gap-3 rounded-field py-2.5 text-left"
-      aria-label={`Edit ${title}, ${amount}, ${when}`}
+      aria-label={t('tx.editAria', { name: title, amount, when })}
     >
       {body}
     </button>

@@ -2,6 +2,9 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import {
   ChartBar,
   ChartDonut,
+  Desktop,
+  Moon,
+  Sun,
   Gear,
   House,
   List,
@@ -19,6 +22,8 @@ import {
 import { useApp } from '../store/AppContext';
 import { signOut } from '../store/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
+import { LANGUAGES } from '../lib/i18n';
+import type { ThemePref } from '../types';
 import { SyncBadge } from './AccountBits';
 
 export type Tab =
@@ -37,34 +42,35 @@ export type Tab =
  */
 export const TAB_GROUPS: { title: string | null; items: Tab[] }[] = [
   { title: null, items: ['home', 'transactions', 'accounts'] },
-  { title: 'Plan', items: ['budgets', 'goals'] },
-  { title: 'Look back', items: ['insights', 'reports'] },
+  { title: 'nav.groupPlan', items: ['budgets', 'goals'] },
+  { title: 'nav.groupLookBack', items: ['insights', 'reports'] },
   { title: null, items: ['settings'] },
 ];
 
-export const TABS: { id: Tab; label: string; Icon: typeof House }[] = [
-  { id: 'home', label: 'Home', Icon: House },
-  { id: 'transactions', label: 'Transactions', Icon: Receipt },
-  { id: 'accounts', label: 'Accounts', Icon: Cards },
-  { id: 'budgets', label: 'Budgets', Icon: Wallet },
-  { id: 'goals', label: 'Goals', Icon: Target },
-  { id: 'insights', label: 'Insights', Icon: ChartDonut },
-  { id: 'reports', label: 'Reports', Icon: ChartBar },
-  { id: 'settings', label: 'Settings', Icon: Gear },
+export const TABS: { id: Tab; key: string; Icon: typeof House }[] = [
+  { id: 'home', key: 'nav.home', Icon: House },
+  { id: 'transactions', key: 'nav.transactions', Icon: Receipt },
+  { id: 'accounts', key: 'nav.accounts', Icon: Cards },
+  { id: 'budgets', key: 'nav.budgets', Icon: Wallet },
+  { id: 'goals', key: 'nav.goals', Icon: Target },
+  { id: 'insights', key: 'nav.insights', Icon: ChartDonut },
+  { id: 'reports', key: 'nav.reports', Icon: ChartBar },
+  { id: 'settings', key: 'nav.settings', Icon: Gear },
 ];
 
 const BY_ID = new Map(TABS.map((t) => [t.id, t]));
 export const tabInfo = (id: Tab) => BY_ID.get(id)!;
 
-export const TAB_LABELS: Record<Tab, string> = {
-  home: 'Home',
-  transactions: 'Transactions',
-  accounts: 'Accounts',
-  budgets: 'Budgets',
-  goals: 'Savings goals',
-  insights: 'Insights',
-  reports: 'Reports',
-  settings: 'Settings',
+/** The longer name a screen goes by in its own heading and in the palette. */
+export const TAB_TITLE_KEYS: Record<Tab, string> = {
+  home: 'nav.home',
+  transactions: 'nav.transactions',
+  accounts: 'nav.accounts',
+  budgets: 'nav.budgets',
+  goals: 'nav.goalsLong',
+  insights: 'nav.insights',
+  reports: 'nav.reports',
+  settings: 'nav.settings',
 };
 
 /* ------------------------------------------------------------ wordmark */
@@ -126,19 +132,30 @@ export function Sidebar({
   onSearch: () => void;
   onSignIn: () => void;
 }) {
+  const { t } = useApp();
   return (
     <nav
-      aria-label="Primary"
+      aria-label={t('nav.primary')}
       className="fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col bg-white px-3 py-4 desk:flex dark:bg-night-card"
       style={{ borderRight: '1px solid var(--hairline)' }}
     >
-      <div className="px-2 pb-4">
+      <div className="px-2 pb-3">
         <Wordmark />
+        <p className="mt-1 pl-9 text-micro leading-tight text-ink-500 dark:text-ink-400">
+          {t('app.slogan')}
+        </p>
+      </div>
+
+      {/* Language and theme, where they can be reached from any screen rather
+          than only from the depths of Settings. */}
+      <div className="mb-3 flex gap-1.5">
+        <LanguageToggle />
+        <ThemeToggle />
       </div>
 
       <button type="button" onClick={onAdd} className="btn-primary mb-1.5 min-h-[44px]">
         <Plus size={18} weight="bold" aria-hidden="true" />
-        Add transaction
+        {t('nav.addTransaction')}
       </button>
 
       <button
@@ -148,7 +165,7 @@ export function Sidebar({
         style={{ border: '1px solid var(--hairline)' }}
       >
         <MagnifyingGlass size={16} aria-hidden="true" />
-        <span className="flex-1 text-left">Search</span>
+        <span className="flex-1 text-left">{t('nav.search')}</span>
         <kbd className="rounded bg-ink-100 px-1.5 py-0.5 text-micro font-medium text-ink-500 dark:bg-night-raised dark:text-ink-400">
           Ctrl K
         </kbd>
@@ -159,12 +176,12 @@ export function Sidebar({
           <div key={gi} className={gi > 0 ? 'mt-3' : ''}>
             {group.title && (
               <p className="px-2.5 pb-1 text-micro font-medium uppercase tracking-[0.07em] text-ink-400 dark:text-ink-500">
-                {group.title}
+                {t(group.title)}
               </p>
             )}
             <ul className="space-y-0.5">
               {group.items.map((id) => {
-                const { label, Icon } = tabInfo(id);
+                const { key, Icon } = tabInfo(id);
                 const on = active === id;
                 return (
                   <li key={id}>
@@ -179,7 +196,7 @@ export function Sidebar({
                       }`}
                     >
                       <Icon size={20} weight={on ? 'fill' : 'regular'} aria-hidden="true" />
-                      {label}
+                      {t(key)}
                     </button>
                   </li>
                 );
@@ -203,19 +220,19 @@ function AccountFooter({
   onSignIn: () => void;
   onSettings: () => void;
 }) {
-  const { auth, state } = useApp();
+  const { auth, state, t } = useApp();
 
   if (!auth.session) {
     return (
       <div className="hairline-t pt-3">
         <p className="px-1 pb-2 text-meta leading-snug text-ink-500 dark:text-ink-400">
           {isSupabaseConfigured
-            ? 'Not signed in. This browser is the only copy.'
-            : 'Local only. Accounts are not connected yet.'}
+            ? t('nav.notSignedIn')
+            : t('nav.localOnly')}
         </p>
         <button type="button" onClick={onSignIn} className="btn-quiet w-full justify-start">
           <SignIn size={17} aria-hidden="true" />
-          Log in or sign up
+          {t('nav.logInOrSignUp')}
         </button>
       </div>
     );
@@ -284,7 +301,7 @@ export function AppBar({
   onProfile: () => void;
   title: string;
 }) {
-  const { auth, state } = useApp();
+  const { auth, state, t } = useApp();
 
   return (
     <header
@@ -298,7 +315,9 @@ export function AppBar({
       <button
         type="button"
         onClick={onProfile}
-        aria-label={auth.session ? `Account, signed in as ${auth.email}` : 'Account'}
+        aria-label={
+          auth.session ? t('nav.accountSignedIn', { email: auth.email ?? '' }) : t('nav.account')
+        }
         className="press flex h-11 w-11 items-center justify-center rounded-full"
       >
         {auth.session ? (
@@ -311,7 +330,7 @@ export function AppBar({
       <button
         type="button"
         onClick={onMenu}
-        aria-label="Open menu"
+        aria-label={t('nav.openMenu')}
         aria-haspopup="dialog"
         className="press flex h-11 w-11 items-center justify-center rounded-full text-ink-700 dark:text-ink-200"
       >
@@ -349,7 +368,7 @@ export function Drawer({
 }) {
   const panel = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
-  const { auth, state } = useApp();
+  const { auth, state, t } = useApp();
 
   useEffect(() => {
     if (!open) return;
@@ -407,19 +426,24 @@ export function Drawer({
         ref={panel}
         role="dialog"
         aria-modal="true"
-        aria-label="Menu"
+        aria-label={t('nav.menu')}
         className="animate-drawer-in absolute inset-y-0 right-0 flex w-[290px] max-w-[86vw] flex-col bg-white px-3 py-3 dark:bg-night-card"
       >
-        <div className="flex items-center justify-between pb-2 pl-1.5">
+        <div className="flex items-center justify-between pb-1 pl-1.5">
           <Wordmark />
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close menu"
+            aria-label={t('nav.closeMenu')}
             className="press flex h-11 w-11 items-center justify-center rounded-full text-ink-600 dark:text-ink-300"
           >
             <X size={20} aria-hidden="true" />
           </button>
+        </div>
+
+        <div className="mb-3 flex gap-1.5">
+          <LanguageToggle />
+          <ThemeToggle />
         </div>
 
         <button
@@ -432,7 +456,7 @@ export function Drawer({
           style={{ border: '1px solid var(--hairline)' }}
         >
           <MagnifyingGlass size={16} aria-hidden="true" />
-          Search transactions
+          {t('nav.searchTransactions')}
         </button>
 
         <div className="flex-1 overflow-y-auto">
@@ -440,12 +464,12 @@ export function Drawer({
             <div key={gi} className={gi > 0 ? 'mt-3' : ''}>
               {group.title && (
                 <p className="px-2.5 pb-1 text-micro font-medium uppercase tracking-[0.07em] text-ink-400 dark:text-ink-500">
-                  {group.title}
+                  {t(group.title)}
                 </p>
               )}
               <ul className="space-y-0.5">
                 {group.items.map((id) => {
-                  const { label, Icon } = tabInfo(id);
+                  const { key, Icon } = tabInfo(id);
                   const on = active === id;
                   return (
                     <li key={id}>
@@ -463,7 +487,7 @@ export function Drawer({
                         }`}
                       >
                         <Icon size={20} weight={on ? 'fill' : 'regular'} aria-hidden="true" />
-                        {label}
+                        {t(key)}
                       </button>
                     </li>
                   );
@@ -498,7 +522,7 @@ export function Drawer({
                 className="btn-quiet w-full justify-start"
               >
                 <SignOut size={17} aria-hidden="true" />
-                Sign out
+                {t('nav.signOut')}
               </button>
             </>
           ) : (
@@ -511,7 +535,7 @@ export function Drawer({
               className="btn-primary"
             >
               <SignIn size={17} aria-hidden="true" />
-              Log in or sign up
+              {t('nav.logInOrSignUp')}
             </button>
           )}
         </div>
@@ -520,15 +544,100 @@ export function Drawer({
   );
 }
 
+/* ------------------------------------------------------ quick toggles */
+
+/**
+ * Language and theme, one tap from anywhere.
+ *
+ * Both live in Settings as well, with room to explain themselves. These are
+ * the shortcut: two small segmented controls at the top of the navigation,
+ * which is where somebody looks when the app is in the wrong language and they
+ * cannot read the word "Settings".
+ */
+export function LanguageToggle() {
+  const { lang, dispatch, t } = useApp();
+  return (
+    <div
+      className="flex flex-1 gap-0.5 rounded-field bg-ink-100 p-0.5 dark:bg-night-raised"
+      role="radiogroup"
+      aria-label={t('nav.language')}
+    >
+      {LANGUAGES.map((l) => {
+        const on = lang === l.id;
+        return (
+          <button
+            key={l.id}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            aria-label={l.label}
+            title={l.label}
+            onClick={() => dispatch({ type: 'settings/lang', value: l.id })}
+            className={`press min-h-[36px] flex-1 rounded-chip text-micro font-semibold ${
+              on
+                ? 'bg-white text-ink-900 dark:bg-night-card dark:text-ink-50'
+                : 'text-ink-500 dark:text-ink-400'
+            }`}
+            style={on ? { border: '1px solid var(--hairline)' } : undefined}
+          >
+            {l.short}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ThemeToggle() {
+  const { state, dispatch, t } = useApp();
+  const options: { id: ThemePref; Icon: typeof Sun; key: string }[] = [
+    { id: 'system', Icon: Desktop, key: 'settings.themeSystem' },
+    { id: 'light', Icon: Sun, key: 'settings.themeLight' },
+    { id: 'dark', Icon: Moon, key: 'settings.themeDark' },
+  ];
+
+  return (
+    <div
+      className="flex flex-1 gap-0.5 rounded-field bg-ink-100 p-0.5 dark:bg-night-raised"
+      role="radiogroup"
+      aria-label={t('nav.theme')}
+    >
+      {options.map(({ id, Icon, key }) => {
+        const on = state.darkMode === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            aria-label={t(key)}
+            title={t(key)}
+            onClick={() => dispatch({ type: 'settings/theme', value: id })}
+            className={`press flex min-h-[36px] flex-1 items-center justify-center rounded-chip ${
+              on
+                ? 'bg-white text-ink-900 dark:bg-night-card dark:text-ink-50'
+                : 'text-ink-500 dark:text-ink-400'
+            }`}
+            style={on ? { border: '1px solid var(--hairline)' } : undefined}
+          >
+            <Icon size={15} weight={on ? 'fill' : 'regular'} aria-hidden="true" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* -------------------------------------------------------- floating add */
 
 /** The one control that stays put on mobile, in the corner a thumb owns. */
 export function FloatingAdd({ onAdd, pulse }: { onAdd: () => void; pulse?: boolean }) {
+  const { t } = useApp();
   return (
     <button
       type="button"
       onClick={onAdd}
-      aria-label="Add a transaction"
+      aria-label={t('nav.addTransactionAria')}
       className={`press fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom,0px))] right-gutter z-30 flex h-[58px] w-[58px] items-center justify-center rounded-full bg-brand text-white desk:hidden dark:bg-mint dark:text-brand ${
         pulse ? 'animate-pulse-once' : ''
       }`}

@@ -13,11 +13,12 @@ import {
   SignOut,
   Sun,
   Target,
+  Translate,
   Trash,
   Wallet,
   type Icon,
 } from '@phosphor-icons/react';
-import type { Tab } from './Navigation';
+import { TAB_TITLE_KEYS, type Tab } from './Navigation';
 import { useApp } from '../store/AppContext';
 import { signOut } from '../store/auth';
 import { relativeTime } from '../lib/date';
@@ -64,7 +65,7 @@ export function CommandPalette({
   onStartFresh: () => void;
   dark: boolean;
 }) {
-  const { state, dispatch, auth, today, categoryById } = useApp();
+  const { state, dispatch, auth, today, categoryById, t, lang, relWords, locale } = useApp();
   const [query, setQuery] = useState('');
   const [cursor, setCursor] = useState(0);
   const input = useRef<HTMLInputElement>(null);
@@ -91,25 +92,73 @@ export function CommandPalette({
       onNavigate(t);
       onClose();
     };
+    // Keywords stay bilingual and unlocalised on purpose: typing "tabungan"
+    // or "savings" should reach the same row whichever language is showing.
+    const nav = (id: Tab, Icon: Icon, keywords: string): Command => ({
+      id,
+      label: t('palette.goTo', { name: t(TAB_TITLE_KEYS[id]) }),
+      Icon,
+      keywords,
+      run: go(id),
+    });
+
     const list: Command[] = [
-      { id: 'new', label: 'Add a transaction', hint: 'N', Icon: Plus, keywords: 'new add spend expense income record', run: () => { onAdd(); onClose(); } },
-      { id: 'home', label: 'Go to Home', Icon: House, keywords: 'home safe to spend today dashboard', run: go('home') },
-      { id: 'tx', label: 'Go to Transactions', Icon: Receipt, keywords: 'transactions list history search all', run: go('transactions') },
-      { id: 'accounts', label: 'Go to Accounts', Icon: Cards, keywords: 'accounts wallet balance cash bank ewallet saldo total money', run: go('accounts') },
-      { id: 'goals', label: 'Go to Savings goals', Icon: Target, keywords: 'goals savings target progress tabungan', run: go('goals') },
-      { id: 'reports', label: 'Go to Reports', Icon: ChartBar, keywords: 'reports daily weekly monthly yearly income expense laporan', run: go('reports') },
-      { id: 'insights', label: 'Go to Insights', Icon: ChartDonut, keywords: 'insights charts categories subscriptions net worth', run: go('insights') },
-      { id: 'budgets', label: 'Go to Budgets', Icon: Wallet, keywords: 'budgets limits caps', run: go('budgets') },
-      { id: 'settings', label: 'Go to Settings', Icon: Gear, keywords: 'settings more account income currency theme categories', run: go('settings') },
-      { id: 'import', label: 'Import a CSV from your bank', Icon: FileArrowUp, keywords: 'import csv bank upload statement file', run: () => { onImport(); onClose(); } },
-      { id: 'fresh', label: 'Delete everything and start fresh', Icon: Trash, keywords: 'reset delete clear sample demo data fresh start over wipe empty', run: () => { onStartFresh(); onClose(); } },
+      {
+        id: 'new',
+        label: t('palette.addTransaction'),
+        hint: 'N',
+        Icon: Plus,
+        keywords: 'new add spend expense income record tambah transaksi catat',
+        run: () => {
+          onAdd();
+          onClose();
+        },
+      },
+      nav('home', House, 'home safe to spend today dashboard beranda aman'),
+      nav('transactions', Receipt, 'transactions list history search all transaksi riwayat cari'),
+      nav('accounts', Cards, 'accounts wallet balance cash bank ewallet saldo total akun dompet'),
+      nav('goals', Target, 'goals savings target progress tabungan impian'),
+      nav('reports', ChartBar, 'reports daily weekly monthly yearly income expense laporan'),
+      nav('insights', ChartDonut, 'insights charts categories subscriptions net worth wawasan grafik'),
+      nav('budgets', Wallet, 'budgets limits caps anggaran batas'),
+      nav('settings', Gear, 'settings more account income currency theme categories pengaturan bahasa language'),
+      {
+        id: 'import',
+        label: t('palette.importCsv'),
+        Icon: FileArrowUp,
+        keywords: 'import csv bank upload statement file impor',
+        run: () => {
+          onImport();
+          onClose();
+        },
+      },
+      {
+        id: 'fresh',
+        label: t('palette.startFresh'),
+        Icon: Trash,
+        keywords: 'reset delete clear sample demo data fresh start over wipe empty hapus',
+        run: () => {
+          onStartFresh();
+          onClose();
+        },
+      },
       {
         id: 'theme',
-        label: dark ? 'Switch to light mode' : 'Switch to dark mode',
+        label: t(dark ? 'palette.toLight' : 'palette.toDark'),
         Icon: dark ? Sun : Moon,
-        keywords: 'theme dark light appearance mode',
+        keywords: 'theme dark light appearance mode tema gelap terang',
         run: () => {
           dispatch({ type: 'settings/theme', value: dark ? 'light' : 'dark' });
+          onClose();
+        },
+      },
+      {
+        id: 'lang',
+        label: t('palette.switchLang'),
+        Icon: Translate,
+        keywords: 'language bahasa indonesia english inggris switch ganti',
+        run: () => {
+          dispatch({ type: 'settings/lang', value: lang === 'id' ? 'en' : 'id' });
           onClose();
         },
       },
@@ -117,12 +166,42 @@ export function CommandPalette({
 
     list.push(
       auth.session
-        ? { id: 'signout', label: 'Sign out', Icon: SignOut, keywords: 'sign out log out leave account', run: () => { void signOut(); onClose(); } }
-        : { id: 'signin', label: 'Log in or sign up', Icon: SignIn, keywords: 'sign in log in register account create', run: () => { onSignIn(); onClose(); } },
+        ? {
+            id: 'signout',
+            label: t('palette.signOut'),
+            Icon: SignOut,
+            keywords: 'sign out log out leave account keluar',
+            run: () => {
+              void signOut();
+              onClose();
+            },
+          }
+        : {
+            id: 'signin',
+            label: t('palette.signIn'),
+            Icon: SignIn,
+            keywords: 'sign in log in register account create masuk daftar',
+            run: () => {
+              onSignIn();
+              onClose();
+            },
+          },
     );
 
     return list;
-  }, [onNavigate, onClose, onAdd, onImport, onSignIn, onStartFresh, dispatch, dark, auth.session]);
+  }, [
+    onNavigate,
+    onClose,
+    onAdd,
+    onImport,
+    onSignIn,
+    onStartFresh,
+    dispatch,
+    dark,
+    auth.session,
+    t,
+    lang,
+  ]);
 
   const q = query.trim().toLowerCase();
 
@@ -196,13 +275,13 @@ export function CommandPalette({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Command palette"
+        aria-label={t('palette.title')}
         className="animate-pop-in relative flex max-h-[70vh] w-full max-w-[560px] flex-col overflow-hidden rounded-card bg-white dark:bg-night-card"
         style={{ border: '1px solid var(--hairline)' }}
       >
         <div className="hairline-b px-3 py-2">
           <label htmlFor="palette-input" className="sr-only">
-            Search commands and transactions
+            {t('palette.searchLabel')}
           </label>
           <input
             id="palette-input"
@@ -210,7 +289,7 @@ export function CommandPalette({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Jump to a screen, run a command, or find a transaction"
+            placeholder={t('palette.placeholder')}
             autoComplete="off"
             role="combobox"
             aria-expanded="true"
@@ -223,9 +302,7 @@ export function CommandPalette({
         <ul id="palette-list" ref={listRef} role="listbox" className="min-h-0 flex-1 overflow-y-auto p-1.5">
           {total === 0 && (
             <li className="px-3 py-6 text-center text-meta text-ink-500 dark:text-ink-400">
-              Nothing matches {'"'}
-              {query}
-              {'"'}.
+              {t('palette.nothingMatches', { query })}
             </li>
           )}
 
@@ -255,7 +332,7 @@ export function CommandPalette({
 
           {matchedTransactions.length > 0 && (
             <li className="px-2.5 pb-1 pt-3 text-micro font-medium uppercase tracking-[0.07em] text-ink-500 dark:text-ink-400">
-              Transactions
+              {t('palette.transactions')}
             </li>
           )}
 
@@ -276,10 +353,10 @@ export function CommandPalette({
                   <CategoryTile category={cat} dark={dark} size="sm" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-base text-ink-900 dark:text-ink-50">
-                      {tx.note || cat?.name || 'Transaction'}
+                      {tx.note || cat?.name || t('common.transaction')}
                     </span>
                     <span className="block truncate text-meta text-ink-500 dark:text-ink-400">
-                      {cat?.name} · {relativeTime(tx.date, today)}
+                      {cat?.name} · {relativeTime(tx.date, today, relWords, locale)}
                     </span>
                   </span>
                   <span className="tnum shrink-0 text-meta font-medium text-ink-900 dark:text-ink-50">
@@ -294,13 +371,16 @@ export function CommandPalette({
         <div className="hairline-t flex items-center gap-3 px-3 py-2 text-micro text-ink-500 dark:text-ink-400">
           <span>
             <kbd className="rounded bg-ink-100 px-1 dark:bg-night-raised">up</kbd>{' '}
-            <kbd className="rounded bg-ink-100 px-1 dark:bg-night-raised">down</kbd> to move
+            <kbd className="rounded bg-ink-100 px-1 dark:bg-night-raised">down</kbd>{' '}
+            {t('palette.move')}
           </span>
           <span>
-            <kbd className="rounded bg-ink-100 px-1 dark:bg-night-raised">enter</kbd> to run
+            <kbd className="rounded bg-ink-100 px-1 dark:bg-night-raised">enter</kbd>{' '}
+            {t('palette.run')}
           </span>
           <span>
-            <kbd className="rounded bg-ink-100 px-1 dark:bg-night-raised">esc</kbd> to close
+            <kbd className="rounded bg-ink-100 px-1 dark:bg-night-raised">esc</kbd>{' '}
+            {t('palette.close')}
           </span>
         </div>
       </div>

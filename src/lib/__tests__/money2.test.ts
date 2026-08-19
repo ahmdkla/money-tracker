@@ -10,6 +10,17 @@ import { validateState } from '../storage';
 
 const TODAY = new Date(2026, 7, 19, 10, 0, 0);
 
+/**
+ * Stands in for the real translator. Renders "key[a=1,b=2]" so a test can pin
+ * both the message chosen and the values put into it, without depending on the
+ * wording of either language.
+ */
+const fill = (key: string, vars?: Record<string, string | number>) => {
+  if (!vars) return key;
+  const parts = Object.entries(vars).map(([k, v]) => `${k}=${v}`);
+  return parts.length ? `${key}[${parts.join(',')}]` : key;
+};
+
 /* ------------------------------------------------------------ accounts -- */
 
 describe('accounts and balances', () => {
@@ -19,7 +30,7 @@ describe('accounts and balances', () => {
     const empty = { ...state, transactions: [], transfers: [] };
     const rows = accountBalances(empty, TODAY);
     const bank = rows.find((r) => r.account.id === 'acc_bank')!;
-    expect(bank.balance).toBe(1840.5);
+    expect(bank.balance).toBe(state.accounts.find((a) => a.id === 'acc_bank')!.openingBalance);
     // Read the openings from the seed rather than restating them, so tuning
     // the demo data does not break a test about the arithmetic.
     const expected =
@@ -34,19 +45,20 @@ describe('accounts and balances', () => {
       transfers: [],
       transactions: [
         {
-          id: 't1', amount: 100, type: 'income' as const, categoryId: 'cat_payroll',
+          id: 't1', amount: 100_000, type: 'income' as const, categoryId: 'cat_payroll',
           date: new Date(2026, 7, 10).toISOString(), accountId: 'acc_cash',
         },
         {
-          id: 't2', amount: 30, type: 'expense' as const, categoryId: 'cat_coffee',
+          id: 't2', amount: 30_000, type: 'expense' as const, categoryId: 'cat_coffee',
           date: new Date(2026, 7, 11).toISOString(), accountId: 'acc_cash',
         },
       ],
     };
+    const opening = state.accounts.find((a) => a.id === 'acc_cash')!.openingBalance;
     const cash = accountBalances(one, TODAY).find((r) => r.account.id === 'acc_cash')!;
-    expect(cash.balance).toBe(120 + 100 - 30);
-    expect(cash.moneyIn).toBe(100);
-    expect(cash.moneyOut).toBe(30);
+    expect(cash.balance).toBe(opening + 100_000 - 30_000);
+    expect(cash.moneyIn).toBe(100_000);
+    expect(cash.moneyOut).toBe(30_000);
   });
 
   it('moves money between accounts without inventing or destroying any', () => {
@@ -54,7 +66,7 @@ describe('accounts and balances', () => {
     const after = reducer(state, {
       type: 'transfer/add',
       transfer: {
-        id: 'tr_x', amount: 250, fromAccountId: 'acc_bank', toAccountId: 'acc_cash',
+        id: 'tr_x', amount: 250_000, fromAccountId: 'acc_bank', toAccountId: 'acc_cash',
         date: new Date(2026, 7, 15).toISOString(),
       },
     });
@@ -66,8 +78,8 @@ describe('accounts and balances', () => {
     const cash = rows.find((r) => r.account.id === 'acc_cash')!;
     const bankBefore = accountBalances(state, TODAY).find((r) => r.account.id === 'acc_bank')!;
     const cashBefore = accountBalances(state, TODAY).find((r) => r.account.id === 'acc_cash')!;
-    expect(bank.balance).toBe(Math.round((bankBefore.balance - 250) * 100) / 100);
-    expect(cash.balance).toBe(Math.round((cashBefore.balance + 250) * 100) / 100);
+    expect(bank.balance).toBe(Math.round((bankBefore.balance - 250_000) * 100) / 100);
+    expect(cash.balance).toBe(Math.round((cashBefore.balance + 250_000) * 100) / 100);
   });
 
   it('leaves safe-to-spend completely alone', () => {
@@ -75,7 +87,7 @@ describe('accounts and balances', () => {
     const after = reducer(state, {
       type: 'transfer/add',
       transfer: {
-        id: 'tr_y', amount: 900, fromAccountId: 'acc_bank', toAccountId: 'acc_savings',
+        id: 'tr_y', amount: 900_000, fromAccountId: 'acc_bank', toAccountId: 'acc_savings',
         date: new Date(2026, 7, 15).toISOString(),
       },
     });
@@ -91,7 +103,7 @@ describe('accounts and balances', () => {
       transactions: [
         ...state.transactions,
         {
-          id: 't_future', amount: 5000, type: 'expense' as const, categoryId: 'cat_rent',
+          id: 't_future', amount: 5_000_000, type: 'expense' as const, categoryId: 'cat_rent',
           date: new Date(2026, 7, 28).toISOString(), accountId: 'acc_bank',
         },
       ],
@@ -100,10 +112,12 @@ describe('accounts and balances', () => {
   });
 
   it('refuses a transfer that makes no sense', () => {
-    expect(validateTransfer(state, 'acc_bank', 'acc_bank', 10)).toMatch(/different/i);
-    expect(validateTransfer(state, null, 'acc_cash', 10)).toMatch(/leaves/i);
-    expect(validateTransfer(state, 'acc_bank', 'acc_cash', 0)).toMatch(/above zero/i);
-    expect(validateTransfer(state, 'acc_bank', 'acc_cash', 25)).toBeNull();
+    // A dictionary key, not a sentence: the module is pure and language free.
+    expect(validateTransfer(state, 'acc_bank', 'acc_bank', 10_000)).toBe('accounts.errSame');
+    expect(validateTransfer(state, null, 'acc_cash', 10_000)).toBe('accounts.errPickTwo');
+    expect(validateTransfer(state, 'acc_bank', 'acc_cash', 0)).toBe('accounts.errAmount');
+    expect(validateTransfer(state, 'acc_bank', 'acc_gone', 10_000)).toBe('accounts.errMissingTo');
+    expect(validateTransfer(state, 'acc_bank', 'acc_cash', 25_000)).toBeNull();
   });
 
   it('archives an account with history rather than orphaning it', () => {
@@ -126,51 +140,51 @@ describe('savings goals', () => {
 
   it('reports progress against the target', () => {
     const p = goalProgress(state.goals[0], state, TODAY);
-    expect(p.goal.name).toBe('Emergency fund');
-    expect(p.fraction).toBeCloseTo(2400 / 3000, 5);
-    expect(p.remaining).toBe(600);
+    expect(p.goal.name).toBe('Dana darurat');
+    expect(p.fraction).toBeCloseTo(8_500_000 / 12_000_000, 5);
+    expect(p.remaining).toBe(3_500_000);
     expect(p.reached).toBe(false);
   });
 
   it('works out what has to go in each month to hit a deadline', () => {
-    const trip = state.goals.find((g) => g.name === 'Trip in the spring')!;
+    const trip = state.goals.find((g) => g.name === 'Liburan tahun depan')!;
     const p = goalProgress(trip, state, TODAY);
-    // Aug 2026 to Apr 2027 is eight months; 1480 remaining over eight.
+    // Aug 2026 to Apr 2027 is eight months; 7,400,000 remaining over eight.
     expect(p.monthsLeft).toBe(8);
-    expect(p.perMonth).toBe(185);
+    expect(p.perMonth).toBe(925_000);
   });
 
   it('flags a goal the monthly set-aside cannot keep up with', () => {
     const tight = {
       ...state,
-      savingsGoalPerMonth: 50,
+      savingsGoalPerMonth: 200_000,
       goals: [{ ...state.goals[1] }],
     };
     expect(goalProgress(tight.goals[0], tight, TODAY).behind).toBe(true);
 
-    const generous = { ...tight, savingsGoalPerMonth: 900 };
+    const generous = { ...tight, savingsGoalPerMonth: 3_000_000 };
     expect(goalProgress(generous.goals[0], generous, TODAY).behind).toBe(false);
   });
 
   it('marks a funded goal as reached and sorts it last', () => {
     const done = {
       ...state,
-      goals: [{ ...state.goals[0], saved: 3000 }, state.goals[1]],
+      goals: [{ ...state.goals[0], saved: 12_000_000 }, state.goals[1]],
     };
     const list = allGoalProgress(done, TODAY);
     expect(list[list.length - 1].reached).toBe(true);
   });
 
   it('adds a contribution without going below zero', () => {
-    const up = reducer(state, { type: 'goal/contribute', id: 'goal_trip', amount: 80 });
-    expect(up.goals.find((g) => g.id === 'goal_trip')!.saved).toBe(400);
+    const up = reducer(state, { type: 'goal/contribute', id: 'goal_trip', amount: 400_000 });
+    expect(up.goals.find((g) => g.id === 'goal_trip')!.saved).toBe(2_000_000);
 
-    const down = reducer(state, { type: 'goal/contribute', id: 'goal_trip', amount: -9999 });
+    const down = reducer(state, { type: 'goal/contribute', id: 'goal_trip', amount: -99_999_999 });
     expect(down.goals.find((g) => g.id === 'goal_trip')!.saved).toBe(0);
   });
 
   it('totals what is put aside', () => {
-    expect(totalSaved(state)).toBe(2720);
+    expect(totalSaved(state)).toBe(10_100_000);
   });
 });
 
@@ -189,7 +203,7 @@ describe('reports', () => {
   it('separates money in from money out', () => {
     const buckets = buildReport(state, 'month', TODAY);
     const current = buckets[buckets.length - 1];
-    expect(current.income).toBe(3680);
+    expect(current.income).toBe(12_000_000);
     expect(current.expense).toBeGreaterThan(0);
     expect(current.net).toBe(Math.round((current.income - current.expense) * 100) / 100);
   });
@@ -198,7 +212,7 @@ describe('reports', () => {
     const moved = reducer(state, {
       type: 'transfer/add',
       transfer: {
-        id: 'tr_r', amount: 400, fromAccountId: 'acc_bank', toAccountId: 'acc_cash',
+        id: 'tr_r', amount: 400_000, fromAccountId: 'acc_bank', toAccountId: 'acc_cash',
         date: new Date(2026, 7, 12).toISOString(),
       },
     });
@@ -237,10 +251,12 @@ describe('alerts', () => {
   const safe = computeSafeToSpend(state, TODAY);
 
   it('warns about a bill inside the next week', () => {
-    const alerts = buildAlerts(state, safe, TODAY);
-    const rent = alerts.find((a) => a.id.startsWith('bill-') && a.title.includes('Rent'));
+    // Titles are dictionary keys filled in by the caller, so the assertion is
+    // on the key and the values rather than on a rendered sentence.
+    const alerts = buildAlerts(state, safe, TODAY, (n) => String(n), fill);
+    const rent = alerts.find((a) => a.id.startsWith('bill-') && a.title.includes('Sewa kos'));
     expect(rent).toBeDefined();
-    expect(rent!.title).toMatch(/due in 3 days/);
+    expect(rent!.title).toBe('alerts.billDue[name=Sewa kos,when=alerts.whenInDays[count=3]]');
   });
 
   it('warns when a budget is close to its limit', () => {
@@ -253,21 +269,21 @@ describe('alerts', () => {
     const over = reducer(state, {
       type: 'tx/add',
       tx: {
-        id: 'tx_big_dining', amount: 200, type: 'expense', categoryId: 'cat_dining',
+        id: 'tx_big_dining', amount: 400_000, type: 'expense', categoryId: 'cat_dining',
         date: new Date(2026, 7, 18).toISOString(),
       },
     });
-    const a = buildAlerts(over, computeSafeToSpend(over, TODAY), TODAY)
+    const a = buildAlerts(over, computeSafeToSpend(over, TODAY), TODAY, undefined, fill)
       .find((x) => x.id === 'budget-cat_dining')!;
     expect(a.tone).toBe('warning');
-    expect(a.title).toMatch(/past its limit/);
+    expect(a.title).toContain('alerts.budgetOver');
   });
 
   it('says so when the day is spent out', () => {
     const broke = reducer(state, {
       type: 'tx/add',
       tx: {
-        id: 'tx_huge', amount: 5000, type: 'expense', categoryId: 'cat_dining',
+        id: 'tx_huge', amount: 20_000_000, type: 'expense', categoryId: 'cat_dining',
         date: new Date(2026, 7, 10).toISOString(),
       },
     });
@@ -279,7 +295,7 @@ describe('alerts', () => {
   it('stays quiet on a comfortable month', () => {
     const calm = {
       ...state,
-      monthlyIncome: 12000,
+      monthlyIncome: 60_000_000,
       budgets: [],
       goals: [],
       transactions: state.transactions.filter((t) => !t.recurring),
@@ -335,10 +351,10 @@ describe('recognising the sample month', () => {
     real.transfers = [];
     real.goals = [];
     real.transactions = [
-      { id: 'a', amount: 12, type: 'expense', categoryId: 'cat_groceries',
-        note: 'Trader Joes', date: new Date(2026, 7, 1).toISOString() },
-      { id: 'b', amount: 30, type: 'expense', categoryId: 'cat_dining',
-        note: 'Somewhere else', date: new Date(2026, 7, 2).toISOString() },
+      { id: 'a', amount: 120_000, type: 'expense', categoryId: 'cat_groceries',
+        note: 'Superindo', date: new Date(2026, 7, 1).toISOString() },
+      { id: 'b', amount: 300_000, type: 'expense', categoryId: 'cat_dining',
+        note: 'Tempat lain', date: new Date(2026, 7, 2).toISOString() },
     ];
     // One coincidental match is not a demo.
     expect(validateState(real)!.demoSeeded).toBe(false);

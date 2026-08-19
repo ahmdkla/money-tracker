@@ -33,7 +33,7 @@ export function StartFreshSheet({
   onClose: () => void;
   onDone: (message: string) => void;
 }) {
-  const { state, dispatch } = useApp();
+  const { state, dispatch, t } = useApp();
   const [understood, setUnderstood] = useState(false);
   const [exported, setExported] = useState(false);
 
@@ -44,11 +44,11 @@ export function StartFreshSheet({
   }, [open]);
 
   const counts = [
-    [state.transactions.length, 'transaction', 'transactions'],
-    [state.accounts.length, 'account', 'accounts'],
-    [state.budgets.length, 'budget', 'budgets'],
-    [state.goals.length, 'savings goal', 'savings goals'],
-    [state.transfers.length, 'transfer', 'transfers'],
+    [state.transactions.length, 'fresh.countTransactions'],
+    [state.accounts.length, 'fresh.countAccounts'],
+    [state.budgets.length, 'fresh.countBudgets'],
+    [state.goals.length, 'fresh.countGoals'],
+    [state.transfers.length, 'fresh.countTransfers'],
   ] as const;
 
   const spent = state.transactions
@@ -59,24 +59,24 @@ export function StartFreshSheet({
     <Sheet
       open={open}
       onClose={onClose}
-      title="Start fresh?"
+      title={t('fresh.title')}
       footer={
         <div className="flex gap-2.5">
           <button type="button" onClick={onClose} className="btn-quiet flex-1">
-            Keep it for now
+            {t('fresh.keep')}
           </button>
           <button
             type="button"
             disabled={!understood}
             onClick={() => {
               dispatch({ type: 'data/reset-empty' });
-              onDone('Everything cleared. This is day one.');
+              onDone(t('fresh.doneToast'));
               onClose();
             }}
             className="press flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-field bg-coral-text px-4 text-base font-medium text-white disabled:opacity-40 dark:bg-[#8A3418]"
           >
             <Trash size={18} aria-hidden="true" />
-            Delete everything
+            {t('fresh.deleteAll')}
           </button>
         </div>
       }
@@ -91,27 +91,27 @@ export function StartFreshSheet({
             aria-hidden="true"
           />
           <p className="text-meta leading-snug text-coral-text dark:text-[#F0B49B]">
-            If you delete the sample data, you will start with a fresh Brand New Day, so
-            please make sure you already understand all the features.
+            {t('fresh.warning')}
           </p>
         </div>
 
         <p className="mt-3.5 text-meta leading-snug text-ink-600 dark:text-ink-300">
-          Everything below goes, and it cannot be undone. Your currency, theme and categories
-          stay, so the app is ready to use rather than empty.
+          {t('fresh.body')}
         </p>
 
         {/* Exactly what is about to go, counted rather than described. */}
         <ul className="mt-3 grid gap-1.5 rounded-card px-3.5 py-3" style={{ border: '1px solid var(--hairline)' }}>
-          {counts.map(([n, one, many]) => (
-            <li key={one} className="flex items-baseline justify-between gap-3 text-meta">
-              <span className="text-ink-600 dark:text-ink-300">{n === 1 ? one : many}</span>
+          {counts.map(([n, key]) => (
+            <li key={key} className="flex items-baseline justify-between gap-3 text-meta">
+              <span className="text-ink-600 dark:text-ink-300">{t(key)}</span>
               <span className="tnum font-medium text-ink-900 dark:text-ink-50">{n}</span>
             </li>
           ))}
           {spent > 0 && (
             <li className="hairline-t flex items-baseline justify-between gap-3 pt-1.5 text-meta">
-              <span className="text-ink-600 dark:text-ink-300">spending recorded</span>
+              <span className="text-ink-600 dark:text-ink-300">
+                {t('fresh.spendingRecorded')}
+              </span>
               <span className="tnum font-medium text-ink-900 dark:text-ink-50">
                 {money(spent, state.currency)}
               </span>
@@ -128,7 +128,7 @@ export function StartFreshSheet({
           className="btn-quiet mt-3 w-full justify-start"
         >
           <DownloadSimple size={18} aria-hidden="true" />
-          {exported ? 'Copy downloaded' : 'Download a copy first'}
+          {t(exported ? 'fresh.downloaded' : 'fresh.downloadFirst')}
         </button>
 
         {/* The gate. A destructive button that is live on arrival gets tapped
@@ -144,7 +144,7 @@ export function StartFreshSheet({
             className="mt-0.5 h-5 w-5 shrink-0 accent-brand-mid"
           />
           <span className="text-meta leading-snug text-ink-800 dark:text-ink-100">
-            I understand the sample data will be deleted and cannot be brought back.
+            {t('fresh.understand')}
           </span>
         </label>
 
@@ -155,13 +155,13 @@ export function StartFreshSheet({
             type="button"
             onClick={() => {
               dispatch({ type: 'data/reset-seed' });
-              onDone('Sample month restored');
+              onDone(t('fresh.restoredToast'));
               onClose();
             }}
             className="press mt-3 flex min-h-[44px] w-full items-center justify-center gap-2 rounded-field text-meta font-medium text-ink-600 dark:text-ink-300"
           >
             <ArrowCounterClockwise size={16} aria-hidden="true" />
-            Or bring the sample month back to explore again
+            {t('fresh.restore')}
           </button>
         )}
       </div>
@@ -182,7 +182,7 @@ export function StartFreshSheet({
  * full 44, because a small target and a small button are different things.
  */
 export function ResetBalloon({ onStartFresh }: { onStartFresh: () => void }) {
-  const { state } = useApp();
+  const { state, t } = useApp();
   if (!state.demoSeeded || state.transactions.length === 0) return null;
 
   return (
@@ -195,8 +195,8 @@ export function ResetBalloon({ onStartFresh }: { onStartFresh: () => void }) {
         <button
           type="button"
           onClick={onStartFresh}
-          aria-label="Delete the sample data and start fresh"
-          title="Delete the sample data and start fresh"
+          aria-label={t('fresh.balloonAria')}
+          title={t('fresh.balloonAria')}
           className="press pointer-events-auto flex min-h-[44px] min-w-[44px] items-center
                      justify-center gap-2 rounded-full bg-amber-text text-white
                      dark:bg-[#F0C176] dark:text-[#332810]
@@ -211,7 +211,9 @@ export function ResetBalloon({ onStartFresh }: { onStartFresh: () => void }) {
           >
             <Broom size={18} weight="bold" aria-hidden="true" />
           </span>
-          <span className="hidden text-meta font-semibold desk:inline">Start fresh</span>
+          <span className="hidden text-meta font-semibold desk:inline">
+            {t('fresh.bannerCta')}
+          </span>
         </button>
       </div>
     </div>
@@ -226,7 +228,7 @@ export function ResetBalloon({ onStartFresh }: { onStartFresh: () => void }) {
  * is on screen, and it disappears for good once it has been dealt with.
  */
 export function SampleDataBanner({ onStartFresh }: { onStartFresh: () => void }) {
-  const { state } = useApp();
+  const { state, t } = useApp();
   if (!state.demoSeeded || state.transactions.length === 0) return null;
 
   return (
@@ -241,15 +243,15 @@ export function SampleDataBanner({ onStartFresh }: { onStartFresh: () => void })
         aria-hidden="true"
       />
       <p className="min-w-0 flex-1 text-meta leading-snug text-amber-text dark:text-[#F0C176]">
-        <strong className="font-semibold">This is sample data.</strong> Have a look around with
-        it, then clear it out and start on your own numbers.
+        <strong className="font-semibold">{t('fresh.bannerTitle')}</strong>{' '}
+        {t('fresh.bannerBody')}
       </p>
       <button
         type="button"
         onClick={onStartFresh}
         className="press min-h-[44px] shrink-0 rounded-field bg-amber-text px-3.5 text-meta font-semibold text-white dark:bg-[#F0C176] dark:text-[#332810]"
       >
-        Start fresh
+        {t('fresh.bannerCta')}
       </button>
     </div>
   );

@@ -3,6 +3,7 @@ import type { Category } from '../types';
 import { tints } from '../lib/palette';
 import { iconFor } from './icons';
 import { useReducedMotion } from '../store/theme';
+import { useApp } from '../store/AppContext';
 
 /* ------------------------------------------------------------------ tiles */
 
@@ -138,6 +139,8 @@ export function Sheet({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const { t } = useApp();
+  const closeWord = t('common.close');
   const panel = useRef<HTMLDivElement>(null);
   const restoreTo = useRef<HTMLElement | null>(null);
 
@@ -218,7 +221,7 @@ export function Sheet({
           <button
             type="button"
             onClick={onClose}
-            aria-label={`Close ${title.toLowerCase()}`}
+            aria-label={`${closeWord} ${title.toLowerCase()}`}
             className="press -mr-1 -mt-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-600 dark:text-ink-300"
           >
             <CloseGlyph />

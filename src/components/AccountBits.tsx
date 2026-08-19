@@ -16,11 +16,19 @@ import type { SyncStatus } from '../lib/sync';
 
 /* --------------------------------------------------------- sync badge */
 
-const SYNC_COPY: Record<SyncStatus, { label: string; Icon: typeof CloudCheck; tone: string }> = {
-  idle: { label: 'Saved', Icon: CloudCheck, tone: 'text-brand-mid dark:text-mint' },
-  syncing: { label: 'Saving', Icon: CloudArrowUp, tone: 'text-ink-500 dark:text-ink-400' },
-  offline: { label: 'Offline, will save later', Icon: CloudSlash, tone: 'text-amber-text dark:text-[#F0C176]' },
-  error: { label: 'Some changes did not save', Icon: WarningCircle, tone: 'text-coral-text dark:text-[#F0B49B]' },
+const SYNC_COPY: Record<SyncStatus, { key: string; Icon: typeof CloudCheck; tone: string }> = {
+  idle: { key: 'common.saved', Icon: CloudCheck, tone: 'text-brand-mid dark:text-mint' },
+  syncing: { key: 'common.saving', Icon: CloudArrowUp, tone: 'text-ink-500 dark:text-ink-400' },
+  offline: {
+    key: 'common.offline',
+    Icon: CloudSlash,
+    tone: 'text-amber-text dark:text-[#F0C176]',
+  },
+  error: {
+    key: 'common.syncError',
+    Icon: WarningCircle,
+    tone: 'text-coral-text dark:text-[#F0B49B]',
+  },
 };
 
 /**
@@ -31,10 +39,10 @@ const SYNC_COPY: Record<SyncStatus, { label: string; Icon: typeof CloudCheck; to
  * anxious makes its user anxious.
  */
 export function SyncBadge() {
-  const { auth, syncStatus } = useApp();
+  const { auth, syncStatus, t } = useApp();
   if (!auth.session) return null;
 
-  const { label, Icon, tone } = SYNC_COPY[syncStatus];
+  const { key, Icon, tone } = SYNC_COPY[syncStatus];
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-micro ${tone}`}
@@ -42,7 +50,7 @@ export function SyncBadge() {
       aria-live="polite"
     >
       <Icon size={13} weight="regular" aria-hidden="true" />
-      {label}
+      {t(key)}
     </span>
   );
 }
@@ -50,7 +58,7 @@ export function SyncBadge() {
 /* ------------------------------------------------------ account panel */
 
 export function AccountPanel({ onSignIn }: { onSignIn: () => void }) {
-  const { auth, state, loadingAccount, accountError, retryAccountLoad } = useApp();
+  const { auth, state, loadingAccount, accountError, retryAccountLoad, t } = useApp();
 
   if (auth.session) {
     return (
@@ -82,15 +90,15 @@ export function AccountPanel({ onSignIn }: { onSignIn: () => void }) {
               onClick={retryAccountLoad}
               className="press mt-2 min-h-[44px] text-meta font-semibold text-coral-text underline dark:text-[#F0B49B]"
             >
-              Try loading again
+              {t('auth.tryAgain')}
             </button>
           </div>
         )}
 
         <p className="mt-3 text-meta leading-snug text-ink-500 dark:text-ink-400">
           {loadingAccount
-            ? 'Loading your account.'
-            : `${state.transactions.length} transactions synced to this account. Sign in on any device with the same address to pick up where you left off.`}
+            ? t('auth.loadingAccount')
+            : t('auth.syncedCount', { count: state.transactions.length })}
         </p>
 
         <button
@@ -99,7 +107,7 @@ export function AccountPanel({ onSignIn }: { onSignIn: () => void }) {
           className="btn-quiet mt-3 w-full justify-start"
         >
           <SignOut size={18} aria-hidden="true" />
-          Sign out
+          {t('nav.signOut')}
         </button>
       </div>
     );
@@ -108,16 +116,14 @@ export function AccountPanel({ onSignIn }: { onSignIn: () => void }) {
   return (
     <div className="card">
       <h2 className="text-base font-medium text-ink-900 dark:text-ink-50">
-        {isSupabaseConfigured ? 'Keep this across devices' : 'Running without an account'}
+        {t(isSupabaseConfigured ? 'auth.keepAcross' : 'auth.runningWithout')}
       </h2>
       <p className="mt-1.5 text-meta leading-snug text-ink-600 dark:text-ink-300">
-        {isSupabaseConfigured
-          ? 'Right now everything lives in this browser, and clearing site data would take it with it. An account keeps your months on the server and lets you open them on your phone as well as here.'
-          : 'This deployment has no backend connected, so there is nothing to sign in to. Everything you record stays in this browser. Use Export to keep a copy.'}
+        {t(isSupabaseConfigured ? 'auth.keepAcrossBody' : 'auth.runningWithoutBody')}
       </p>
       <button type="button" onClick={onSignIn} className="btn-primary mt-4">
         <SignIn size={18} aria-hidden="true" />
-        {isSupabaseConfigured ? 'Sign in or create an account' : 'Why is this off?'}
+        {t(isSupabaseConfigured ? 'auth.signInOrCreate' : 'auth.whyOff')}
       </button>
     </div>
   );
@@ -131,7 +137,7 @@ export function AccountPanel({ onSignIn }: { onSignIn: () => void }) {
  * where it is and reappears on sign out.
  */
 export function ImportPrompt() {
-  const { pendingImport, resolvePendingImport, state } = useApp();
+  const { pendingImport, resolvePendingImport, state, t } = useApp();
   if (!pendingImport) return null;
 
   const count = pendingImport.transactions.length;
@@ -143,8 +149,8 @@ export function ImportPrompt() {
     <Sheet
       open
       onClose={() => resolvePendingImport(false)}
-      title="Bring your data across?"
-      description="Your new account is empty, but this browser has records in it."
+      title={t('auth.importTitle')}
+      description={t('auth.importSubtitle')}
     >
       <div className="pb-6 pt-1">
         <div
@@ -152,17 +158,15 @@ export function ImportPrompt() {
           style={{ border: '1px solid var(--hairline)' }}
         >
           <p className="text-base font-medium text-ink-900 dark:text-ink-50">
-            {count} transactions
+            {t('auth.importCount', { count })}
           </p>
           <p className="mt-0.5 text-meta text-ink-500 dark:text-ink-400">
-            {money(spend, state.currency)} of spending, plus your categories and budgets.
+            {t('auth.importSpend', { amount: money(spend, state.currency) })}
           </p>
         </div>
 
         <p className="mt-3 text-meta leading-snug text-ink-600 dark:text-ink-300">
-          Copying this into your account replaces what is there, which is nothing at the
-          moment. If some of it is demo data you would rather not keep, skip this and start
-          clean. Nothing is deleted either way.
+          {t('auth.importBody')}
         </p>
 
         <div className="mt-4 grid gap-2.5">
@@ -172,14 +176,14 @@ export function ImportPrompt() {
             onClick={() => resolvePendingImport(true)}
             className="btn-primary"
           >
-            Copy it into my account
+            {t('auth.importAccept')}
           </button>
           <button
             type="button"
             onClick={() => resolvePendingImport(false)}
             className="btn-quiet w-full"
           >
-            Start clean
+            {t('auth.importSkip')}
           </button>
         </div>
       </div>

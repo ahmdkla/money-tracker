@@ -36,11 +36,19 @@ const BILL_HORIZON_DAYS = 7;
 /** A budget starts to matter at this share of its limit. */
 const BUDGET_WARN_AT = 0.8;
 
+/**
+ * Wording comes in from the caller rather than being built here, because this
+ * module has no business importing React context and the copy has to follow
+ * the chosen language. The default keeps the pure-function tests readable.
+ */
+type Translate = (key: string, vars?: Record<string, string | number>) => string;
+
 export function buildAlerts(
   state: AppState,
   safe: SafeToSpend,
   today: Date = new Date(),
   currency = (s: number) => String(s),
+  t: Translate = (key) => key,
 ): Alert[] {
   const alerts: Alert[] = [];
   const now = startOfDay(today).getTime();
@@ -58,12 +66,17 @@ export function buildAlerts(
 
   for (const bill of upcoming.slice(0, 3)) {
     const days = Math.round((startOfDay(new Date(bill.date)).getTime() - now) / MS_DAY);
-    const when = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `in ${days} days`;
+    const when =
+      days === 0
+        ? t('alerts.whenToday')
+        : days === 1
+          ? t('alerts.whenTomorrow')
+          : t('alerts.whenInDays', { count: days });
     alerts.push({
       id: `bill-${bill.id}`,
       tone: days <= 1 ? 'attention' : 'good',
-      title: `${bill.note ?? 'A bill'} is due ${when}`,
-      body: `${currency(bill.amount)} leaves your account ${when}. It is already set aside, so the daily number will not move when it does.`,
+      title: t('alerts.billDue', { name: bill.note ?? t('home.aBill'), when }),
+      body: t('alerts.billBody', { amount: currency(bill.amount), when }),
       target: 'transactions',
       weight: days <= 1 ? 70 : 40,
     });
@@ -83,15 +96,22 @@ export function buildAlerts(
     const fraction = spent / budget.monthlyLimit;
     if (fraction < BUDGET_WARN_AT) continue;
 
-    const name = state.categories.find((c) => c.id === budget.categoryId)?.name ?? 'A category';
+    const name =
+      state.categories.find((c) => c.id === budget.categoryId)?.name ?? t('common.category');
     const over = fraction > 1;
     alerts.push({
       id: `budget-${budget.categoryId}`,
       tone: over ? 'warning' : 'attention',
-      title: over ? `${name} is past its limit` : `${name} is close to its limit`,
+      title: t(over ? 'alerts.budgetOver' : 'alerts.budgetNear', { name }),
       body: over
-        ? `${currency(round2(spent - budget.monthlyLimit))} past ${currency(budget.monthlyLimit)}. Worth rebalancing rather than worrying about.`
-        : `${currency(spent)} of ${currency(budget.monthlyLimit)} used, with the month still running.`,
+        ? t('alerts.budgetOverBody', {
+            amount: currency(round2(spent - budget.monthlyLimit)),
+            limit: currency(budget.monthlyLimit),
+          })
+        : t('alerts.budgetNearBody', {
+            spent: currency(spent),
+            limit: currency(budget.monthlyLimit),
+          }),
       target: 'budgets',
       weight: over ? 90 : 60,
     });
@@ -103,8 +123,8 @@ export function buildAlerts(
     alerts.push({
       id: 'at-limit',
       tone: 'warning',
-      title: 'You are at your limit for today',
-      body: 'Tomorrow resets. Nothing has gone wrong, the month is just running ahead of the plan.',
+      title: t('alerts.atLimit'),
+      body: t('alerts.atLimitBody'),
       target: 'home',
       weight: 100,
     });
@@ -112,8 +132,11 @@ export function buildAlerts(
     alerts.push({
       id: 'behind-pace',
       tone: 'attention',
-      title: 'Running ahead of the monthly pace',
-      body: `Today allows ${currency(safe.safeToSpendToday)} against a steady ${currency(safe.dailyPace)}. Easing off for a few days brings it back.`,
+      title: t('alerts.behindPace'),
+      body: t('alerts.behindPaceBody', {
+        today: currency(safe.safeToSpendToday),
+        pace: currency(safe.dailyPace),
+      }),
       target: 'insights',
       weight: 50,
     });
@@ -126,8 +149,8 @@ export function buildAlerts(
       alerts.push({
         id: `goal-done-${p.goal.id}`,
         tone: 'good',
-        title: `${p.goal.name} is fully funded`,
-        body: `${currency(p.goal.target)} reached. Worth deciding what it is for now.`,
+        title: t('alerts.goalDone', { name: p.goal.name }),
+        body: t('alerts.goalDoneBody', { amount: currency(p.goal.target) }),
         target: 'goals',
         weight: 30,
       });
@@ -135,8 +158,11 @@ export function buildAlerts(
       alerts.push({
         id: `goal-behind-${p.goal.id}`,
         tone: 'attention',
-        title: `${p.goal.name} needs more each month`,
-        body: `${currency(p.perMonth)} a month gets there on time, against ${currency(state.savingsGoalPerMonth)} currently set aside.`,
+        title: t('alerts.goalBehind', { name: p.goal.name }),
+        body: t('alerts.goalBehindBody', {
+          perMonth: currency(p.perMonth),
+          current: currency(state.savingsGoalPerMonth),
+        }),
         target: 'goals',
         weight: 45,
       });

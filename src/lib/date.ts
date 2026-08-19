@@ -1,3 +1,5 @@
+import { formatLocale } from './format';
+
 /**
  * Date helpers. Everything here works in the user's local timezone, because
  * "today" in a money app means the user's today, not UTC's.
@@ -54,34 +56,60 @@ export function parseMonthKey(key: string): Date {
   return new Date(y, m - 1, 1);
 }
 
-export function monthLabel(d: Date, locale = 'en-US'): string {
+export function monthLabel(d: Date, locale = formatLocale()): string {
   return d.toLocaleDateString(locale, { month: 'long', year: 'numeric' });
 }
 
-export function shortMonthLabel(d: Date, locale = 'en-US'): string {
+export function shortMonthLabel(d: Date, locale = formatLocale()): string {
   return d.toLocaleDateString(locale, { month: 'short' });
 }
 
-export function weekdayLabel(d: Date, locale = 'en-US'): string {
+export function weekdayLabel(d: Date, locale = formatLocale()): string {
   return d.toLocaleDateString(locale, { weekday: 'long' });
 }
 
-export function shortWeekday(d: Date, locale = 'en-US'): string {
+export function shortWeekday(d: Date, locale = formatLocale()): string {
   return d.toLocaleDateString(locale, { weekday: 'short' });
 }
 
-export function fullDateLabel(d: Date, locale = 'en-US'): string {
+export function fullDateLabel(d: Date, locale = formatLocale()): string {
   return d.toLocaleDateString(locale, { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
 /** "8:42 am", "Yesterday", "2 days ago", then a short date. */
-export function relativeTime(iso: string, now = new Date(), locale = 'en-US'): string {
+/**
+ * "8:42", "Yesterday", "2 days ago", then a short date.
+ *
+ * Intl handles the absolute forms; the relative words come from the caller,
+ * because "yesterday" is language, not formatting. `words` is optional so a
+ * test or a non-visual caller can leave it out.
+ */
+export interface RelativeWords {
+  tomorrow: string;
+  inDays: (n: number) => string;
+  yesterday: string;
+  daysAgo: (n: number) => string;
+}
+
+const EN_WORDS: RelativeWords = {
+  tomorrow: 'Tomorrow',
+  inDays: (n) => `In ${n} days`,
+  yesterday: 'Yesterday',
+  daysAgo: (n) => `${n} days ago`,
+};
+
+export function relativeTime(
+  iso: string,
+  now = new Date(),
+  words: RelativeWords = EN_WORDS,
+  locale = formatLocale(),
+): string {
   const d = new Date(iso);
   const days = Math.round((startOfDay(now).getTime() - startOfDay(d).getTime()) / MS_DAY);
 
   if (days < 0) {
-    if (days === -1) return 'Tomorrow';
-    if (days > -7) return `In ${Math.abs(days)} days`;
+    if (days === -1) return words.tomorrow;
+    if (days > -7) return words.inDays(Math.abs(days));
     return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
   }
   if (days === 0) {
@@ -90,16 +118,17 @@ export function relativeTime(iso: string, now = new Date(), locale = 'en-US'): s
       .toLowerCase()
       .replace(/\s/g, ' ');
   }
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
+  if (days === 1) return words.yesterday;
+  if (days < 7) return words.daysAgo(days);
   return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
-export function greetingFor(d: Date): string {
+/** Which greeting applies. The words themselves live in the dictionary. */
+export function greetingKeyFor(d: Date): string {
   const h = d.getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (h < 12) return 'home.greetingMorning';
+  if (h < 18) return 'home.greetingAfternoon';
+  return 'home.greetingEvening';
 }
 
 /** Value for a datetime-local input, in local time. */

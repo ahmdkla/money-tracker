@@ -10,12 +10,17 @@
     /* One hairline value, themed once. Cards get a border, not a drop shadow. */
     --hairline: rgb(20 24 23 / 0.11);
     --focus: #0F6E56;
+    /* The edge on a chosen option, so selection reads without a fill. */
+    --chosen: #0F6E56;
+    --chosen-bg: #F1F7F4;
     color-scheme: light;
   }
 
   .dark {
     --hairline: rgb(255 255 255 / 0.10);
     --focus: #5DCAA5;
+    --chosen: #5DCAA5;
+    --chosen-bg: rgb(93 202 165 / 0.10);
     color-scheme: dark;
   }
 

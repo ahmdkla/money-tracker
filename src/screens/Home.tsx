@@ -10,7 +10,7 @@ import {
 } from '@phosphor-icons/react';
 import type { Transaction } from '../types';
 import { useApp } from '../store/AppContext';
-import { fullDateLabel, greetingFor, weekdayLabel } from '../lib/date';
+import { fullDateLabel, greetingKeyFor, weekdayLabel } from '../lib/date';
 import { money, moneyWhole, plural } from '../lib/format';
 import { totalBalance } from '../lib/accounts';
 import { buildAlerts, type Alert } from '../lib/alerts';
@@ -43,7 +43,7 @@ export function Home({
   onAdd: () => void;
   onStartFresh: () => void;
 }) {
-  const { state, safe, forecast, today, categoryById, ready } = useApp();
+  const { state, safe, forecast, today, categoryById, ready, t } = useApp();
   const currency = state.currency;
   const empty = state.transactions.length === 0;
 
@@ -53,8 +53,8 @@ export function Home({
   const balance = useMemo(() => totalBalance(state, today), [state, today]);
 
   const alerts = useMemo(
-    () => buildAlerts(state, safe, today, (n) => moneyWhole(n, state.currency)),
-    [state, safe, today],
+    () => buildAlerts(state, safe, today, (n) => moneyWhole(n, state.currency), t),
+    [state, safe, today, t],
   );
 
   const recent = useMemo(() => {
@@ -68,7 +68,7 @@ export function Home({
       <header className="flex items-start justify-between gap-4 px-gutter pb-4 pt-3 desk:pt-6">
         <div className="min-w-0">
           <p className="text-lg font-medium text-ink-900 dark:text-ink-50">
-            {greetingFor(today)}, {state.name}
+            {t(greetingKeyFor(today))}, {state.name}
           </p>
           <p className="mt-0.5 text-meta text-ink-500 dark:text-ink-400">
             {fullDateLabel(today)}
@@ -87,12 +87,16 @@ export function Home({
             className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-card bg-white px-4 py-3 dark:bg-night-card"
             style={{ border: '1px solid var(--hairline)' }}
           >
-            <span className="text-meta text-ink-500 dark:text-ink-400">Total balance</span>
+            <span className="text-meta text-ink-500 dark:text-ink-400">
+              {t('home.totalBalance')}
+            </span>
             <span className="tnum text-lg font-medium text-ink-900 dark:text-ink-50">
               {moneyWhole(balance, currency)}
             </span>
             <span className="text-meta text-ink-500 dark:text-ink-400">
-              across {state.accounts.filter((a) => !a.archived).length} accounts
+              {t('home.acrossAccounts', {
+                count: state.accounts.filter((a) => !a.archived).length,
+              })}
             </span>
           </div>
         </section>
@@ -109,12 +113,12 @@ export function Home({
           {/* 3. Forecast --------------------------------------------- */}
           <section className="px-gutter pt-6 desk:col-span-2 desk:pt-0">
             <SectionHeader
-              title="Next 7 days"
+              title={t('home.next7Days')}
               icon={<CalendarBlank size={14} weight="bold" aria-hidden="true" />}
             />
             <div className="card">
               <p className="mb-3 text-meta text-ink-600 dark:text-ink-300">
-                What is left in this month{'’'}s spending money as each day passes.
+                {t('home.forecastCaption')}
               </p>
               {ready ? (
                 <Suspense fallback={CHART_SKELETON}>
@@ -137,14 +141,14 @@ export function Home({
                   aria-hidden="true"
                 />
                 <p className="text-meta leading-snug text-coral-text dark:text-[#F0B49B]">
-                  <strong className="font-semibold">
-                    {forecast.warning.tx.note ??
+                  {t('home.billWarning', {
+                    name:
+                      forecast.warning.tx.note ??
                       categoryById(forecast.warning.tx.categoryId)?.name ??
-                      'A bill'}{' '}
-                    ({moneyWhole(forecast.warning.tx.amount, currency)})
-                  </strong>{' '}
-                  hits {weekdayLabel(forecast.warning.day.date)}. That leaves you under a
-                  week of everyday spending until the month turns.
+                      t('home.aBill'),
+                    amount: moneyWhole(forecast.warning.tx.amount, currency),
+                    day: weekdayLabel(forecast.warning.day.date),
+                  })}
                 </p>
               </div>
             </section>
@@ -153,7 +157,7 @@ export function Home({
           {/* 5. Recent ------------------------------------------------ */}
           <section className="px-gutter pt-6 desk:col-span-2 desk:pt-0">
             <SectionHeader
-              title="Recent"
+              title={t('home.recent')}
               action={
                 <button
                   type="button"
@@ -162,7 +166,7 @@ export function Home({
                   // reaches the 44px minimum.
                   className="press -my-2.5 -mr-2 flex min-h-[44px] items-center rounded-chip px-2 text-meta font-medium text-brand-mid dark:text-mint"
                 >
-                  See all
+                  {t('common.seeAll')}
                 </button>
               }
             />
@@ -185,7 +189,7 @@ export function Home({
           {alerts.length > 0 && (
             <section className="px-gutter pt-6 desk:col-span-2 desk:px-0 desk:pt-0">
               <SectionHeader
-                title="Worth knowing"
+                title={t('home.worthKnowing')}
                 icon={<Bell size={13} weight="bold" aria-hidden="true" />}
               />
               <ul className="card divide-y" style={{ borderColor: 'var(--hairline)' }}>
@@ -225,7 +229,7 @@ export function Home({
  * a way through, nothing more.
  */
 function BudgetGlance({ dark }: { dark: boolean }) {
-  const { state, today, categoryById } = useApp();
+  const { state, today, categoryById, t } = useApp();
 
   const rows = useMemo(() => {
     const spent = new Map<string, number>();
@@ -253,7 +257,7 @@ function BudgetGlance({ dark }: { dark: boolean }) {
 
   return (
     <>
-      <SectionHeader title="Budgets" />
+      <SectionHeader title={t('home.budgets')} />
       <div className="card space-y-3">
         {rows.map((r) => {
           const tone = r.fraction > 1 ? '#F0997B' : r.fraction >= 0.8 ? '#EF9F27' : '#0F6E56';
@@ -261,17 +265,23 @@ function BudgetGlance({ dark }: { dark: boolean }) {
             <div key={r.categoryId}>
               <div className="flex items-baseline justify-between gap-2">
                 <span className="truncate text-meta font-medium text-ink-900 dark:text-ink-50">
-                  {r.category?.name ?? 'Category'}
+                  {r.category?.name ?? t('common.category')}
                 </span>
                 <span className="tnum shrink-0 text-meta text-ink-500 dark:text-ink-400">
-                  {moneyWhole(r.used, state.currency)} of {moneyWhole(r.monthlyLimit, state.currency)}
+                  {t('budgets.ofLimit', {
+                    spent: moneyWhole(r.used, state.currency),
+                    limit: moneyWhole(r.monthlyLimit, state.currency),
+                  })}
                 </span>
               </div>
               <div className="mt-1.5">
                 <ProgressBar
                   fraction={r.fraction}
                   tone={tone}
-                  label={`${r.category?.name ?? 'Category'}, ${Math.round(r.fraction * 100)} percent used`}
+                  label={t('budgets.percentUsed', {
+                    name: r.category?.name ?? t('common.category'),
+                    percent: Math.round(r.fraction * 100),
+                  })}
                   height={6}
                 />
               </div>
@@ -287,7 +297,7 @@ function BudgetGlance({ dark }: { dark: boolean }) {
 /* ------------------------------------------------------------------ hero */
 
 function Hero({ currency }: { currency: string }) {
-  const { safe, state } = useApp();
+  const { safe, state, t } = useApp();
   const shown = useCountUp(safe.safeToSpendToday);
 
   const ahead = safe.paceDelta >= 0;
@@ -296,7 +306,7 @@ function Hero({ currency }: { currency: string }) {
   return (
     <div className="rounded-hero bg-brand px-5 pb-5 pt-5 text-white">
       <p className="text-meta font-medium uppercase tracking-[0.09em] text-mint-soft">
-        Safe to spend today
+        {t('home.safeToSpend')}
       </p>
 
       {/* The line box is fixed so a change of digits never nudges the layout. */}
@@ -306,13 +316,13 @@ function Hero({ currency }: { currency: string }) {
         </span>
         <VisuallyHidden>
           {' '}
-          exactly {money(safe.safeToSpendToday, currency)}
+          {t('home.exactly', { amount: money(safe.safeToSpendToday, currency) })}
         </VisuallyHidden>
       </p>
 
       {safe.atLimit ? (
         <p className="mt-1 max-w-[34ch] text-meta leading-snug text-mint-soft">
-          You are at your limit for today. Tomorrow resets.
+          {t('home.atLimit')}
         </p>
       ) : (
         <p
@@ -325,7 +335,9 @@ function Hero({ currency }: { currency: string }) {
           ) : (
             <TrendDown size={14} weight="bold" aria-hidden="true" />
           )}
-          {moneyWhole(delta, currency)} {ahead ? 'under' : 'over'} your daily pace
+          {t(ahead ? 'home.underPace' : 'home.overPace', {
+            amount: moneyWhole(delta, currency),
+          })}
         </p>
       )}
 
@@ -334,15 +346,27 @@ function Hero({ currency }: { currency: string }) {
           <ProgressBar
             fraction={safe.usedFraction}
             tone="#5DCAA5"
-            label={`${Math.round(safe.usedFraction * 100)} percent of this month spending money used`}
+            label={t('home.percentUsed', {
+              percent: Math.round(safe.usedFraction * 100),
+            })}
             height={5}
           />
         </div>
         <div className="mt-2 flex items-baseline justify-between gap-3 text-meta text-mint-soft">
           <span className="tnum">
-            {moneyWhole(Math.max(0, safe.remainingThisMonth), state.currency)} left this month
+            {t('home.leftThisMonth', {
+              amount: moneyWhole(Math.max(0, safe.remainingThisMonth), state.currency),
+            })}
           </span>
-          <span className="tnum">{plural(safe.daysLeftIncludingToday, 'day', 'days')} to go</span>
+          <span className="tnum">
+            {t('home.daysToGo', {
+              count: plural(
+                safe.daysLeftIncludingToday,
+                t('common.day'),
+                t('common.days'),
+              ),
+            })}
+          </span>
         </div>
       </div>
     </div>
@@ -381,20 +405,21 @@ function AlertGlyph({ tone }: { tone: Alert['tone'] }) {
 }
 
 function EmptyHero({ onAdd }: { onAdd: () => void }) {
+  const { t } = useApp();
   return (
     <div className="rounded-hero bg-brand px-5 py-6 text-white">
       <p className="text-meta font-medium uppercase tracking-[0.09em] text-mint-soft">
-        Safe to spend today
+        {t('home.safeToSpend')}
       </p>
       <p className="mt-2 max-w-[26ch] font-display text-[1.6rem] leading-snug">
-        Add your first transaction to see what you are safe to spend.
+        {t('home.emptyTitle')}
       </p>
       <button
         type="button"
         onClick={onAdd}
         className="press mt-4 inline-flex min-h-[44px] items-center rounded-field bg-mint px-4 text-meta font-semibold text-brand"
       >
-        Add your first transaction
+        {t('home.emptyCta')}
       </button>
     </div>
   );
