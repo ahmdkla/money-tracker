@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Zoom is never disabled. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="description" content="manimani is a calm money tracker. It answers one question: are you okay to spend today?" />
+    <meta name="theme-color" content="#F7F8F7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0F1512" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <title>manimani</title>
+    <script>
+      // Resolve the theme before first paint so there is no light flash on a
+      // dark-mode load. Mirrors the logic in src/store/theme.ts.
+      (function () {
+        try {
+          var raw =
+            localStorage.getItem('manimani.state.v1') ||
+            localStorage.getItem('clearing.state.v1');
+          var pref = raw ? (JSON.parse(raw).darkMode || 'system') : 'system';
+          var dark =
+            pref === 'dark' ||
+            (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.classList.toggle('dark', dark);
+        } catch (e) {
+          /* first load, or unreadable storage: fall through to system default */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

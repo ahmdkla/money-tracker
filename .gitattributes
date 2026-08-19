@@ -1,0 +1,8 @@
+# Normalise to LF in the repository; check out native on Windows.
+* text=auto eol=lf
+
+# Generated, and noisy in review.
+package-lock.json linguist-generated=true -diff
+
+# So GitHub reports this as a TypeScript project rather than a CSS one.
+*.css linguist-detectable=false

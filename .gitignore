@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Environment: never commit real keys. See .env.example for the shape.
+.env
+.env.*
+!.env.example
+
+# Vercel CLI state (contains project and org ids)
+.vercel/
+
+# Supabase CLI state (contains the linked project ref)
+supabase/.temp/
+
+# Local editor and OS noise
+.DS_Store
+Thumbs.db
+*.local
+.idea/
+.vscode/
+
+# Local agent tooling, not part of the application
+.claude/

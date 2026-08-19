@@ -1,0 +1,169 @@
+@import '@fontsource-variable/public-sans';
+@import '@fontsource-variable/fraunces';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* One hairline value, themed once. Cards get a border, not a drop shadow. */
+    --hairline: rgb(20 24 23 / 0.11);
+    --focus: #0F6E56;
+    color-scheme: light;
+  }
+
+  .dark {
+    --hairline: rgb(255 255 255 / 0.10);
+    --focus: #5DCAA5;
+    color-scheme: dark;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-ink-100 text-ink-900 font-sans antialiased dark:bg-black dark:text-ink-100;
+    /* 16px floor everywhere: iOS will not auto-zoom a focused input. */
+    font-size: 16px;
+    font-synthesis-weight: none;
+  }
+
+  /* One focus treatment for the whole app. Never removed, only shaped. */
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Numbers in columns, rows and the hero must not jitter as digits change. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  button,
+  [role='button'],
+  a,
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  /* Hide the spinner on number inputs; the amount field owns its own keypad. */
+  input[type='number']::-webkit-outer-spin-button,
+  input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  /* Surfaces ------------------------------------------------------------ */
+  .card {
+    @apply rounded-card bg-white p-4 dark:bg-night-card;
+    border: 1px solid var(--hairline);
+  }
+
+  .hairline-t {
+    border-top: 1px solid var(--hairline);
+  }
+
+  .hairline-b {
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  /* Controls ------------------------------------------------------------ */
+  .press {
+    @apply transition-transform duration-press ease-out;
+  }
+  .press:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .btn-primary {
+    @apply press flex min-h-[52px] w-full items-center justify-center gap-2
+           rounded-field bg-brand px-5 text-base font-medium text-white
+           disabled:opacity-50 dark:bg-brand-mid;
+  }
+  .btn-primary:active:not(:disabled) {
+    @apply bg-brand-deep dark:bg-brand;
+  }
+
+  .btn-quiet {
+    @apply press flex min-h-[48px] items-center justify-center gap-2 rounded-field
+           px-4 text-base font-medium text-ink-800 dark:text-ink-100;
+    border: 1px solid var(--hairline);
+  }
+
+  .field {
+    @apply w-full rounded-field bg-ink-50 px-3.5 py-3 text-base text-ink-900
+           placeholder:text-ink-400 dark:bg-night-raised dark:text-ink-50
+           dark:placeholder:text-ink-500;
+    border: 1px solid var(--hairline);
+    min-height: 48px;
+  }
+  .field:focus {
+    outline: 2px solid var(--focus);
+    outline-offset: 1px;
+  }
+
+  .label {
+    @apply mb-1.5 block text-meta font-medium text-ink-600 dark:text-ink-300;
+  }
+
+  /* Loading placeholders. Real ones: charts genuinely have no data to draw
+     until the container has been measured. */
+  .skeleton {
+    @apply animate-shimmer rounded-chip bg-ink-200 dark:bg-night-raised;
+  }
+
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    @apply sr-only;
+  }
+}
+
+@layer utilities {
+  .safe-b {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .safe-t {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* Motion is a courtesy, never a requirement. Honour the OS switch. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .press:active:not(:disabled) {
+    transform: none;
+  }
+}
