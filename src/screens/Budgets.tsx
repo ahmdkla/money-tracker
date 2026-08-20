@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Plus, Trash } from '@phosphor-icons/react';
+import { Check, Plus, Trash } from '@phosphor-icons/react';
+import type { ColorKey } from '../types';
 import { useApp } from '../store/AppContext';
 import { transactionsInMonth } from '../lib/insights';
 import { money, round2 } from '../lib/format';
 import { monthLabel } from '../lib/date';
+import { COLOR_KEYS, COLOR_KEY_LABELS, tints } from '../lib/palette';
+import { CATEGORY_ICON_NAMES, iconFor } from '../components/icons';
 import { CategoryTile, ProgressBar, Sheet } from '../components/primitives';
 
 /**
@@ -80,7 +83,6 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
                 setSheetOpen(true);
               }}
               className="btn-primary mt-4"
-              disabled={unbudgeted.length === 0}
             >
               <Plus size={18} weight="bold" aria-hidden="true" />
               {t('budgets.setFirst')}
@@ -156,24 +158,31 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
         )}
 
         {rows.length > 0 && (
-          <button
-            type="button"
-            onClick={() => {
-              setEditing(null);
-              setSheetOpen(true);
-            }}
-            disabled={unbudgeted.length === 0}
-            className="btn-quiet mt-3 w-full desk:max-w-[280px]"
-          >
-            <Plus size={18} weight="bold" aria-hidden="true" />
-            {t(unbudgeted.length === 0 ? 'budgets.allCovered' : 'budgets.addBudget')}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(null);
+                setSheetOpen(true);
+              }}
+              className="btn-quiet mt-3 w-full desk:max-w-[280px]"
+            >
+              <Plus size={18} weight="bold" aria-hidden="true" />
+              {t('budgets.addBudget')}
+            </button>
+            {unbudgeted.length === 0 && (
+              <p className="mt-1.5 text-meta leading-snug text-ink-500 dark:text-ink-400 desk:max-w-[280px]">
+                {t('budgets.allCovered')}
+              </p>
+            )}
+          </>
         )}
       </section>
 
       <BudgetSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
+        dark={dark}
         editingCategoryId={editing}
         onRemove={(categoryId) => {
           dispatch({ type: 'budget/remove', categoryId });
@@ -184,14 +193,19 @@ export function Budgets({ dark, onAddTransaction }: { dark: boolean; onAddTransa
   );
 }
 
+/** A blank category, ready to be named. */
+const BLANK_CATEGORY = { name: '', colorKey: 'evergreen' as ColorKey, icon: 'Tag' };
+
 function BudgetSheet({
   open,
   onClose,
+  dark,
   editingCategoryId,
   onRemove,
 }: {
   open: boolean;
   onClose: () => void;
+  dark: boolean;
   editingCategoryId: string | null;
   onRemove: (categoryId: string) => void;
 }) {
@@ -211,6 +225,18 @@ function BudgetSheet({
   const [error, setError] = useState<string | null>(null);
   const [key, setKey] = useState(0);
 
+  /**
+   * A budget is a limit on a category, so needing a category the user has not
+   * created yet is a normal thing to want. Sending them to Settings and back
+   * for it is the kind of errand that stops people setting budgets at all, so
+   * one can be made right here.
+   *
+   * It opens in this mode automatically when there is nothing left to pick.
+   */
+  const [creating, setCreating] = useState(available.length === 0);
+  const [draft, setDraft] = useState(BLANK_CATEGORY);
+  const tintSet = tints(dark);
+
   // Re-seed the fields each time the sheet opens on a different budget.
   const openKey = `${open}-${editingCategoryId}`;
   const [lastKey, setLastKey] = useState(openKey);
@@ -218,21 +244,42 @@ function BudgetSheet({
     setLastKey(openKey);
     setCategoryId(editingCategoryId ?? available[0]?.id ?? '');
     setLimit(existing ? String(existing.monthlyLimit) : '');
+    setCreating(!editingCategoryId && available.length === 0);
+    setDraft(BLANK_CATEGORY);
     setError(null);
     setKey((k) => k + 1);
   }
 
   function save() {
-    const value = Number.parseFloat(limit);
-    if (!categoryId) {
+    const name = draft.name.trim();
+
+    if (creating && !name) {
+      setError(t('budgets.errCategoryName'));
+      return;
+    }
+    if (!creating && !categoryId) {
       setError(t('budgets.errCategory'));
       return;
     }
+
+    const value = Number.parseFloat(limit);
     if (!Number.isFinite(value) || value <= 0) {
       setError(t('budgets.errLimit'));
       return;
     }
-    dispatch({ type: 'budget/set', budget: { categoryId, monthlyLimit: value } });
+
+    // The category has to exist before a budget can point at it. Two actions
+    // in a row, so the reducer sees the new category when it reads the second.
+    let target = categoryId;
+    if (creating) {
+      target = `cat_${Date.now().toString(36)}`;
+      dispatch({
+        type: 'category/add',
+        category: { id: target, name, icon: draft.icon, colorKey: draft.colorKey, kind: 'expense' },
+      });
+    }
+
+    dispatch({ type: 'budget/set', budget: { categoryId: target, monthlyLimit: value } });
     onClose();
   }
 
@@ -262,32 +309,136 @@ function BudgetSheet({
     >
       <div key={key} className="grid gap-4 pt-1">
         <div>
-          <label htmlFor="budget-category" className="label">
+          <label htmlFor={creating ? 'budget-new-name' : 'budget-category'} className="label">
             {t('common.category')}
           </label>
-          <select
-            id="budget-category"
-            data-autofocus
-            value={categoryId}
-            onChange={(e) => {
-              setCategoryId(e.target.value);
-              setError(null);
-            }}
-            disabled={Boolean(existing)}
-            className="field disabled:opacity-60"
-          >
-            {available.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+
+          {creating ? (
+            <input
+              id="budget-new-name"
+              data-autofocus
+              value={draft.name}
+              onChange={(e) => {
+                setDraft({ ...draft, name: e.target.value });
+                setError(null);
+              }}
+              placeholder={t('budgets.newCategoryPlaceholder')}
+              className="field"
+            />
+          ) : (
+            <select
+              id="budget-category"
+              data-autofocus
+              value={categoryId}
+              onChange={(e) => {
+                setCategoryId(e.target.value);
+                setError(null);
+              }}
+              disabled={Boolean(existing)}
+              className="field disabled:opacity-60"
+            >
+              {available.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Editing an existing budget leaves the category alone: moving a
+              limit to a different one is a remove and an add, not an edit. */}
+          {!existing && (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {available.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreating((v) => !v);
+                    setError(null);
+                  }}
+                  className="press -ml-1 flex min-h-[44px] items-center gap-1.5 rounded-chip px-1 text-meta font-medium text-brand-mid dark:text-mint"
+                >
+                  {creating ? null : <Plus size={14} weight="bold" aria-hidden="true" />}
+                  {t(creating ? 'budgets.useExisting' : 'budgets.newCategory')}
+                </button>
+              )}
+              {available.length === 0 && (
+                <p className="text-meta leading-snug text-ink-500 dark:text-ink-400">
+                  {t('budgets.allCoveredHint')}
+                </p>
+              )}
+            </div>
+          )}
+
           {existing && (
             <p className="mt-1.5 text-meta text-ink-500 dark:text-ink-400">
               {t('budgets.moveHint')}
             </p>
           )}
         </div>
+
+        {/* Colour and icon, only while a category is being made. Deliberately
+            short: this is a detour from setting a budget, not the category
+            editor, which lives in Settings with room for all of it. */}
+        {creating && (
+          <>
+            <fieldset>
+              <legend className="label">{t('palette.colour')}</legend>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_KEYS.map((k: ColorKey) => {
+                  const on = draft.colorKey === k;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      aria-label={COLOR_KEY_LABELS[k]}
+                      onClick={() => setDraft({ ...draft, colorKey: k })}
+                      className="press flex h-11 w-11 items-center justify-center rounded-chip"
+                      style={{
+                        backgroundColor: tintSet[k].bg,
+                        color: tintSet[k].fg,
+                        outline: on ? `2px solid ${tintSet[k].fg}` : 'none',
+                        outlineOffset: '1px',
+                      }}
+                    >
+                      {on && <Check size={16} weight="bold" aria-hidden="true" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="label">{t('settings.icon')}</legend>
+              <div className="grid grid-cols-7 gap-1.5">
+                {CATEGORY_ICON_NAMES.slice(0, 14).map((name) => {
+                  const Icon = iconFor(name);
+                  const on = draft.icon === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      aria-label={name}
+                      onClick={() => setDraft({ ...draft, icon: name })}
+                      className={`press flex h-11 items-center justify-center rounded-chip ${
+                        on
+                          ? 'bg-brand text-white dark:bg-mint dark:text-brand'
+                          : 'text-ink-600 dark:text-ink-300'
+                      }`}
+                      style={on ? undefined : { border: '1px solid var(--hairline)' }}
+                    >
+                      <Icon size={19} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          </>
+        )}
 
         <div>
           <label htmlFor="budget-limit" className="label">
@@ -306,7 +457,9 @@ function BudgetSheet({
           />
           <p className="mt-1.5 text-meta text-ink-500 dark:text-ink-400">
             {t('budgets.limitHint', {
-              name: categoryById(categoryId)?.name ?? t('common.category'),
+              name: creating
+                ? draft.name.trim() || t('budgets.thisCategory')
+                : (categoryById(categoryId)?.name ?? t('budgets.thisCategory')),
             })}
           </p>
         </div>

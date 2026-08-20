@@ -7,6 +7,7 @@ import {
   createSeedState,
 } from '../seed';
 import { validateState } from '../storage';
+import { reducer } from '../../store/reducer';
 import { parseQuickAdd } from '../parse';
 import { setFormatLocale } from '../format';
 import { formatAmountInput, sanitiseAmount } from '../../components/TransactionSheet';
@@ -152,5 +153,74 @@ describe('the amount field', () => {
     setFormatLocale('id-ID');
     // Twelve digits is a hundred billion rupiah, comfortably past any salary.
     expect(sanitiseAmount('999999999999', 0)).toBe('999999999999');
+  });
+});
+
+/* ------------------------------------- a budget on a brand new category -- */
+
+describe('setting a budget on a category that does not exist yet', () => {
+  const TODAY_B = new Date(2026, 7, 19, 10, 0, 0);
+
+  it('creates the category first, so the budget has something to point at', () => {
+    const start = createSeedState(TODAY_B);
+    const id = 'cat_school';
+
+    // The order the sheet dispatches in. Reversing it would leave a budget
+    // referencing a category that is not there yet.
+    const withCategory = reducer(start, {
+      type: 'category/add',
+      category: { id, name: 'Sekolah', icon: 'Tag', colorKey: 'plum', kind: 'expense' },
+    });
+    const withBudget = reducer(withCategory, {
+      type: 'budget/set',
+      budget: { categoryId: id, monthlyLimit: 750_000 },
+    });
+
+    expect(withBudget.categories.find((c) => c.id === id)!.name).toBe('Sekolah');
+    expect(withBudget.budgets.find((b) => b.categoryId === id)!.monthlyLimit).toBe(750_000);
+  });
+
+  it('leaves every other category and budget alone', () => {
+    const start = createSeedState(TODAY_B);
+    const after = reducer(
+      reducer(start, {
+        type: 'category/add',
+        category: { id: 'cat_new', name: 'Baru', icon: 'Tag', colorKey: 'slate', kind: 'expense' },
+      }),
+      { type: 'budget/set', budget: { categoryId: 'cat_new', monthlyLimit: 100_000 } },
+    );
+
+    expect(after.categories).toHaveLength(start.categories.length + 1);
+    expect(after.budgets).toHaveLength(start.budgets.length + 1);
+    for (const b of start.budgets) {
+      expect(after.budgets.find((x) => x.categoryId === b.categoryId)!.monthlyLimit).toBe(
+        b.monthlyLimit,
+      );
+    }
+  });
+
+  it('rounds the limit and never stores a negative one', () => {
+    const start = createSeedState(TODAY_B);
+    const odd = reducer(start, {
+      type: 'budget/set',
+      budget: { categoryId: 'cat_coffee', monthlyLimit: 250_000.567 },
+    });
+    expect(odd.budgets.find((b) => b.categoryId === 'cat_coffee')!.monthlyLimit).toBe(250_000.57);
+
+    const negative = reducer(start, {
+      type: 'budget/set',
+      budget: { categoryId: 'cat_coffee', monthlyLimit: -50 },
+    });
+    expect(negative.budgets.find((b) => b.categoryId === 'cat_coffee')!.monthlyLimit).toBe(0);
+  });
+
+  it('replaces rather than duplicates when the category already has one', () => {
+    const start = createSeedState(TODAY_B);
+    const again = reducer(start, {
+      type: 'budget/set',
+      budget: { categoryId: 'cat_coffee', monthlyLimit: 300_000 },
+    });
+    expect(again.budgets.filter((b) => b.categoryId === 'cat_coffee')).toHaveLength(1);
+    expect(again.budgets.find((b) => b.categoryId === 'cat_coffee')!.monthlyLimit).toBe(300_000);
   });
 });
