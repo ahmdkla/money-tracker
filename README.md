@@ -31,6 +31,9 @@ that run over say so plainly and suggest rebalancing rather than scolding.
 - **Rupiah, US dollar or ringgit**, and switching genuinely converts every
   stored figure at the live rate rather than relabelling them. With no
   connection the switch does not happen and says so.
+- **A month as a PDF**, in one tap, from the top of Home. Summary, spending by
+  category, every budget, account balances, savings goals, and every
+  transaction grouped by day.
 - **Search everything**, plus a command palette on `Ctrl`/`Cmd` + `K`.
 - **Two real layouts**: a sidebar application on desktop, a drawer and a
   floating action button on a phone. Not one scaled up.
@@ -52,14 +55,14 @@ npm run dev        # http://localhost:5173
 | `npm run dev` | Development server |
 | `npm run build` | Type check, then a production build |
 | `npm run preview` | Serve the production build locally |
-| `npm test` | 140 unit tests over the money logic, translation and entry |
+| `npm test` | 174 unit tests over the money logic, translation, entry and the report |
 
 It runs with no configuration at all. Without Supabase credentials the app is
 entirely local: it stores everything in `localStorage`, needs no server, and
 opens on a seeded demo month so the first screen has something to say. Adding
 credentials switches accounts on. See **[SETUP.md](SETUP.md)**.
 
-## Two decisions worth knowing about
+## Three decisions worth knowing about
 
 **Money is stored in whatever currency is selected, as a plain number.**
 Switching currency therefore rewrites every stored figure at the live rate
@@ -67,6 +70,15 @@ Switching currency therefore rewrites every stored figure at the live rate
 rupiah into fifty thousand dollars. The rate comes from the network and there
 is deliberately no offline fallback: a guessed rate would quietly corrupt every
 number in the app, so a failed request cancels the switch and shows a message.
+
+**The PDF writer is about four hundred lines, not a dependency**
+(`src/lib/pdf.ts`). A money app should not pull three hundred kilobytes and a
+supply chain into the browser to draw text and rectangles. It writes enough of
+the format for the report to typeset properly, uses two of the fourteen fonts
+every reader is required to carry so nothing is embedded, and the whole
+feature, layout and all, is a 6 kB chunk fetched only when somebody asks for a
+report. `src/lib/report.ts` works out the numbers as a pure function, so the
+arithmetic is tested without a PDF reader in the loop.
 
 **Translation is a dictionary and a lookup, not a library** (`src/lib/i18n.ts`).
 One namespace, both languages in the bundle, so switching is instant with

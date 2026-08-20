@@ -11,7 +11,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { ArrowDown, ArrowUp } from '@phosphor-icons/react';
+import { ArrowDown, ArrowUp, FilePdf } from '@phosphor-icons/react';
 import type { Transaction } from '../types';
 import { useApp } from '../store/AppContext';
 import {
@@ -38,9 +38,11 @@ import { TransactionRow } from '../components/TransactionRow';
 export function Reports({
   dark,
   onSelectTransaction,
+  onReport,
 }: {
   dark: boolean;
   onSelectTransaction: (tx: Transaction) => void;
+  onReport: () => void;
 }) {
   const { state, today, categoryById, ready, t } = useApp();
   const [granularity, setGranularity] = useState<Granularity>('month');
@@ -67,13 +69,23 @@ export function Reports({
 
   return (
     <div className="pb-24 desk:pb-8">
-      <header className="px-gutter pb-3 pt-3 desk:pt-6">
-        <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">
-          {t('reports.title')}
-        </h1>
-        <p className="mt-0.5 text-meta text-ink-500 dark:text-ink-400">
-          {t('reports.subtitle')}
-        </p>
+      <header className="flex flex-wrap items-start gap-3 px-gutter pb-3 pt-3 desk:pt-6">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-medium text-ink-900 dark:text-ink-50">
+            {t('reports.title')}
+          </h1>
+          <p className="mt-0.5 text-meta text-ink-500 dark:text-ink-400">
+            {t('reports.subtitle')}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onReport}
+          className="btn-quiet min-h-[44px] shrink-0 px-3 text-meta"
+        >
+          <FilePdf size={17} aria-hidden="true" />
+          {t('report.download')}
+        </button>
       </header>
 
       {/* Period ------------------------------------------------------- */}

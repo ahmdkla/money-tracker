@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo } from 'react';
 import {
   Bell,
   CalendarBlank,
+  FilePdf,
   Sun,
   CheckCircle,
   TrendDown,
@@ -37,12 +38,14 @@ export function Home({
   onSelectTransaction,
   onAdd,
   onStartFresh,
+  onReport,
 }: {
   dark: boolean;
   onSeeAll: () => void;
   onSelectTransaction: (tx: Transaction) => void;
   onAdd: () => void;
   onStartFresh: () => void;
+  onReport: () => void;
 }) {
   const { state, safe, forecast, today, categoryById, ready, t } = useApp();
   const currency = state.currency;
@@ -76,6 +79,19 @@ export function Home({
           </p>
         </div>
 
+        {/* The greeting has never used the right half of this row, and a
+            report is the one thing somebody comes to Home to take away. */}
+        <button
+          type="button"
+          onClick={onReport}
+          className="btn-quiet min-h-[44px] shrink-0 px-3 text-meta"
+        >
+          <FilePdf size={17} aria-hidden="true" />
+          <span className="hidden sm:inline">{t('report.download')}</span>
+          <VisuallyHidden>
+            <span className="sm:hidden">{t('report.download')}</span>
+          </VisuallyHidden>
+        </button>
       </header>
 
       <section className="px-gutter pb-4">

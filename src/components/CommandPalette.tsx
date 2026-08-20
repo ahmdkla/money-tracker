@@ -4,6 +4,7 @@ import {
   ChartBar,
   ChartDonut,
   FileArrowUp,
+  FilePdf,
   Gear,
   House,
   Moon,
@@ -53,6 +54,7 @@ export function CommandPalette({
   onSignIn,
   onEdit,
   onStartFresh,
+  onReport,
   dark,
 }: {
   open: boolean;
@@ -63,6 +65,7 @@ export function CommandPalette({
   onSignIn: () => void;
   onEdit: (id: string) => void;
   onStartFresh: () => void;
+  onReport: () => void;
   dark: boolean;
 }) {
   const { state, dispatch, auth, today, categoryById, t, lang, relWords, locale } = useApp();
@@ -133,6 +136,16 @@ export function CommandPalette({
         },
       },
       {
+        id: 'report',
+        label: t('report.download'),
+        Icon: FilePdf,
+        keywords: 'report pdf download export print laporan unduh cetak bulanan',
+        run: () => {
+          onReport();
+          onClose();
+        },
+      },
+      {
         id: 'fresh',
         label: t('palette.startFresh'),
         Icon: Trash,
@@ -196,6 +209,7 @@ export function CommandPalette({
     onImport,
     onSignIn,
     onStartFresh,
+    onReport,
     dispatch,
     dark,
     auth.session,

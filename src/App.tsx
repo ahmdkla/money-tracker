@@ -35,6 +35,11 @@ const Reports = lazy(() => import('./screens/Reports').then((m) => ({ default: m
 const CsvImport = lazy(() =>
   import('./components/CsvImport').then((m) => ({ default: m.CsvImport })),
 );
+// The PDF writer and the report layout are only worth fetching once somebody
+// actually asks for a report, which is not on the way to anything else.
+const ReportSheet = lazy(() =>
+  import('./components/ReportSheet').then((m) => ({ default: m.ReportSheet })),
+);
 
 function ScreenSkeleton() {
   return (
@@ -65,6 +70,7 @@ function Shell() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const [focusSearchToken, setFocusSearchToken] = useState(0);
   const [freshOpen, setFreshOpen] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -174,6 +180,7 @@ function Shell() {
             onSelectTransaction={openEdit}
             onAdd={openAdd}
             onStartFresh={() => setFreshOpen(true)}
+            onReport={() => setReportOpen(true)}
           />
         );
       case 'transactions':
@@ -190,7 +197,13 @@ function Shell() {
       case 'goals':
         return <Goals dark={dark} />;
       case 'reports':
-        return <Reports dark={dark} onSelectTransaction={openEdit} />;
+        return (
+          <Reports
+            dark={dark}
+            onSelectTransaction={openEdit}
+            onReport={() => setReportOpen(true)}
+          />
+        );
       case 'insights':
         return <Insights dark={dark} onSelectTransaction={openEdit} />;
       case 'budgets':
@@ -272,6 +285,7 @@ function Shell() {
         onSignIn={() => setAuthOpen(true)}
         onEdit={editById}
         onStartFresh={() => setFreshOpen(true)}
+        onReport={() => setReportOpen(true)}
         dark={dark}
       />
 
@@ -290,6 +304,16 @@ function Shell() {
             open={csvOpen}
             onClose={() => setCsvOpen(false)}
             dark={dark}
+            notify={notify}
+          />
+        )}
+      </Suspense>
+
+      <Suspense fallback={null}>
+        {reportOpen && (
+          <ReportSheet
+            open={reportOpen}
+            onClose={() => setReportOpen(false)}
             notify={notify}
           />
         )}
